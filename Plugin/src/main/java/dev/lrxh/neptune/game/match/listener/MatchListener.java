@@ -284,6 +284,13 @@ public class MatchListener implements Listener {
         if (profile == null) return;
         Match match = profile.getMatch();
         if (match == null) return;
+
+        // Cancel damage event if player is in SPECTATOR State
+        if (profile.hasState(ProfileState.IN_SPECTATOR)) {
+            event.setCancelled(true);
+            return;
+        }
+
         Participant participant = match.getParticipant(player.getUniqueId());
         participant.setDeathCause(DeathCause.DIED);
         match.onDeath(participant);
