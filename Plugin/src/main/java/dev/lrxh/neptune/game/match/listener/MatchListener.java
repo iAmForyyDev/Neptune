@@ -40,6 +40,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.projectiles.ProjectileSource;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -299,26 +300,30 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerMoveEvent(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
-        Match match = profile.getMatch();
+    public void onPlayerMoveEvent(final @NotNull PlayerMoveEvent event) {
+        if (!event.hasChangedPosition()) {
+            return;
+        }
 
+        final Player player = event.getPlayer();
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
+        final Match match = profile.getMatch();
         if (match != null) {
-            Participant participant = match.getParticipant(player.getUniqueId());
-            if (participant == null) return;
-            if (participant.isFrozen()) {
-                if (event.hasChangedPosition()) {
-                    Location to = event.getTo();
-                    Location from = event.getFrom();
-                    if ((to.getX() != from.getX() || to.getZ() != from.getZ())) {
-                        player.teleport(from);
-                        return;
-                    }
-                }
+            final Participant participant = match.getParticipant(player.getUniqueId());
+            if (participant == null) {
+                return;
             }
-            Arena arena = match.getArena();
+
+            if (participant.isFrozen()) {
+                event.setCancelled(true);
+                return;
+            }
+
+            final Arena arena = match.getArena();
             if (player.getLocation().getY() <= arena.getDeathY() && !participant.isDead()) {
                 if (match.getKit().is(KitRule.PARKOUR)) {
                     if (participant.getCurrentCheckPoint() != null) {
@@ -333,8 +338,7 @@ public class MatchListener implements Listener {
                 return;
             }
             if (match.getState().equals(MatchState.IN_ROUND)) {
-                Location playerLocation = player.getLocation();
-
+                final Location playerLocation = player.getLocation();
                 if (match.getKit().is(KitRule.DROPPER)) {
                     Block block = playerLocation.getBlock();
 
@@ -346,8 +350,7 @@ public class MatchListener implements Listener {
                 }
 
                 if (match.getKit().is(KitRule.SUMO)) {
-                    Block block = playerLocation.getBlock();
-
+                    final Block block = playerLocation.getBlock();
                     if (block.getType() == Material.WATER) {
                         participant.setDeathCause(participant.getLastAttacker() != null ? DeathCause.KILL : DeathCause.DIED);
                         match.onDeath(participant);
