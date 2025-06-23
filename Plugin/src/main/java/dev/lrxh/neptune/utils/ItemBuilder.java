@@ -3,6 +3,7 @@ package dev.lrxh.neptune.utils;
 import dev.lrxh.neptune.providers.material.NMaterial;
 import dev.lrxh.neptune.providers.placeholder.PlaceholderUtil;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -55,7 +56,10 @@ public class ItemBuilder {
     public ItemBuilder name(String name) {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            meta.displayName(CC.color(name));
+            meta.displayName(
+                    CC.color(name)
+                            .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+            );
             item.setItemMeta(meta);
         }
         return this;
@@ -88,7 +92,10 @@ public class ItemBuilder {
         if (meta != null) {
             List<TextComponent> toSet = new ArrayList<>();
             for (String string : PlaceholderUtil.format(lore, player)) {
-                toSet.add(CC.color(string));
+                toSet.add(
+                        CC.color(string)
+                                .decoration(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+                );
             }
             meta.lore(toSet);
             item.setItemMeta(meta);

@@ -1,39 +1,39 @@
 package dev.lrxh.neptune.providers.clickable;
 
-import dev.lrxh.neptune.utils.CC;
 import lombok.Getter;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
 @Getter
-public class Replacement {
-    private final String placeholder;
-    private final TextComponent replacement;
+public final class Replacement {
 
-    public Replacement(String placeholder, String replacement) {
+    private final String placeholder;
+    private final String replacement;
+
+    public Replacement(final @NotNull String placeholder, String replacement) {
         this.placeholder = placeholder;
-        this.replacement = CC.color(replacement);
+        this.replacement = replacement;
     }
 
-    public Replacement(String placeholder, List<String> replacement) {
+    public Replacement(final @NotNull String placeholder, final @NotNull List<String> replacement) {
         this.placeholder = placeholder;
 
-        TextComponent.Builder builder = Component.text();
-
+        final StringBuilder builder = new StringBuilder();
         for (int i = 0; i < replacement.size(); i++) {
-            builder.append(CC.color(replacement.get(i)));
+            builder.append(replacement.get(i));
             if (i < replacement.size() - 1) {
-                builder.append(Component.newline());
+                builder.append("\n");
             }
         }
 
-        this.replacement = builder.build();
+        this.replacement = builder.toString();
     }
 
     public Replacement(String placeholder, TextComponent replacement) {
         this.placeholder = placeholder;
-        this.replacement = replacement;
+        this.replacement = LegacyComponentSerializer.legacyAmpersand().serialize(replacement);
     }
 }

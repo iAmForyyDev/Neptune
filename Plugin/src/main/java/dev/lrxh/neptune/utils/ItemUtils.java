@@ -2,7 +2,6 @@ package dev.lrxh.neptune.utils;
 
 import dev.lrxh.neptune.providers.clickable.Replacement;
 import lombok.experimental.UtilityClass;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -125,7 +124,7 @@ public class ItemUtils {
                 if (modifiedLine.contains(replacement.getPlaceholder())) {
                     modifiedLine = modifiedLine.replace(
                             replacement.getPlaceholder(),
-                            MiniMessage.miniMessage().serialize(replacement.getReplacement())
+                            replacement.getReplacement()
                     );
                 }
             }
