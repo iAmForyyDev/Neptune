@@ -31,12 +31,6 @@ public final class CC {
         return color("&7[~] " + text);
     }
 
-    public TextComponent color(final @Nullable String message, final boolean withItalic) {
-        return message == null || message.isEmpty() ? Component.empty() :
-                LegacyComponentSerializer.legacyAmpersand()
-                        .deserialize(message);
-    }
-
     public TextComponent color(final @Nullable String message) {
         return message == null || message.isEmpty() ? Component.empty() :
                 LegacyComponentSerializer.legacyAmpersand()
