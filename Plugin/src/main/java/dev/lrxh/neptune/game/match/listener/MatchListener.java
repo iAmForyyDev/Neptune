@@ -361,21 +361,6 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerMove(PlayerMoveEvent event) {
-        Player player = event.getPlayer();
-        Location from = event.getFrom();
-        Location to = event.getTo();
-        if (to.getY() > from.getY()) {
-            Block currentBlock = player.getLocation().getBlock();
-
-            if (currentBlock.getType() == Material.END_PORTAL) {
-
-            }
-        }
-    }
-
-
-    @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
