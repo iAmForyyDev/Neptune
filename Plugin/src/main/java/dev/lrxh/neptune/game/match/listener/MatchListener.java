@@ -18,8 +18,6 @@ import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.providers.clickable.Replacement;
 import dev.lrxh.neptune.utils.CC;
 import dev.lrxh.neptune.utils.LocationUtil;
-import dev.lrxh.neptune.utils.tasks.NeptuneRunnable;
-import dev.lrxh.neptune.utils.tasks.TaskScheduler;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -537,11 +535,9 @@ public class MatchListener implements Listener {
             if (!profile.getState().equals(ProfileState.IN_GAME)) {
                 event.setCancelled(true);
             } else {
-                getMatchForPlayer(player).ifPresent(match -> {
-                    if (projectile instanceof Projectile) {
-                        match.getEntities().add(projectile);
-                    }
-                });
+                getMatchForPlayer(player).ifPresent(match ->
+                        match.getEntities().add(projectile)
+                );
             }
         }
     }
