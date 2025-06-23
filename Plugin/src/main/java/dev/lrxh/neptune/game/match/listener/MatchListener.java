@@ -414,6 +414,10 @@ public class MatchListener implements Listener {
             if (!kit.is(KitRule.DAMAGE)) {
                 event.setCancelled(true);
             }
+
+            if (match.getParticipant(player).isDead()) {
+                event.setCancelled(true);
+            }
         }
     }
 
@@ -533,12 +537,11 @@ public class MatchListener implements Listener {
             if (!profile.getState().equals(ProfileState.IN_GAME)) {
                 event.setCancelled(true);
             } else {
-                TaskScheduler.get().startTaskLater(new NeptuneRunnable() {
-                    @Override
-                    public void run() {
-                        projectile.remove();
+                getMatchForPlayer(player).ifPresent(match -> {
+                    if (projectile instanceof Projectile) {
+                        match.getEntities().add(projectile);
                     }
-                }, 20);
+                });
             }
         }
     }
