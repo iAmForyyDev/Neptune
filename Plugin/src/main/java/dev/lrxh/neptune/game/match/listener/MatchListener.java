@@ -43,16 +43,22 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.Optional;
 
-public class MatchListener implements Listener {
+public final class MatchListener implements Listener {
 
     @EventHandler
-    public void onBlockPlaceEvent(BlockPlaceEvent event) {
-        Player player = event.getPlayer();
-        if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
-        Match match = profile.getMatch();
-        Location blockLocation = event.getBlock().getLocation();
+    public void onBlockPlaceEvent(final @NotNull BlockPlaceEvent event) {
+        final Player player = event.getPlayer();
+        if (player.getGameMode().equals(GameMode.CREATIVE)) {
+            return;
+        }
+
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
+        final Match match = profile.getMatch();
+        final Location blockLocation = event.getBlock().getLocation();
 
         if (profile.hasState(ProfileState.IN_KIT_EDITOR)) {
             event.setCancelled(true);
@@ -67,7 +73,7 @@ public class MatchListener implements Listener {
                 return;
             }
 
-            StandAloneArena arena = (StandAloneArena) match.arena;
+            final StandAloneArena arena = (StandAloneArena) match.arena;
 
             // Check height limit
             if (blockLocation.getY() >= arena.getLimit()) {
@@ -90,28 +96,39 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerDeathEvent(PlayerDeathEvent event) {
-        Player player = event.getEntity();
+    public void onPlayerDeathEvent(final @NotNull PlayerDeathEvent event) {
+        final Player player = event.getEntity();
         event.deathMessage(null);
         event.getDrops().clear();
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
         if (profile.getMatch() != null) {
-            Match match = profile.getMatch();
-            Participant participant = match.getParticipant(player.getUniqueId());
-            if (participant == null) return;
+            final Match match = profile.getMatch();
+            final Participant participant = match.getParticipant(player.getUniqueId());
+            if (participant == null) {
+                return;
+            }
+
             participant.setDeathCause(participant.getLastAttacker() != null ? DeathCause.KILL : DeathCause.DIED);
             match.onDeath(participant);
         }
     }
 
     @EventHandler
-    public void onPlayerDamage(EntityDamageByEntityEvent event) {
+    public void onPlayerDamage(final @NotNull EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player attacker && event.getEntity() instanceof Player) {
-            Profile profile = API.getProfile(attacker);
-            if (profile == null) return;
-            Match match = profile.getMatch();
-            if (match == null) return;
+            final Profile profile = API.getProfile(attacker);
+            if (profile == null) {
+                return;
+            }
+
+            final Match match = profile.getMatch();
+            if (match == null) {
+                return;
+            }
 
             if (match.getKit().is(KitRule.PARKOUR)) {
                 event.setCancelled(true);
@@ -120,19 +137,37 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPressurePlate(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
+    public void onPressurePlate(final @NotNull PlayerInteractEvent event) {
+        final Player player = event.getPlayer();
         if (event.getAction() == Action.PHYSICAL) {
-            Material blockType = event.getClickedBlock() != null ? event.getClickedBlock().getType() : null;
-            if (blockType == null) return;
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
-            Match match = profile.getMatch();
-            if (match == null) return;
-            if (!match.getKit().is(KitRule.PARKOUR)) return;
-            if (!match.getState().equals(MatchState.IN_ROUND)) return;
-            Participant participant = match.getParticipant(player);
-            if (participant == null) return;
+            final Material blockType = event.getClickedBlock() != null ? event.getClickedBlock().getType() : null;
+            if (blockType == null) {
+                return;
+            }
+
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
+
+            final Match match = profile.getMatch();
+            if (match == null) {
+                return;
+            }
+
+            if (!match.getKit().is(KitRule.PARKOUR)) {
+                return;
+            }
+
+            if (!match.getState().equals(MatchState.IN_ROUND)) {
+                return;
+            }
+
+            final Participant participant = match.getParticipant(player);
+            if (participant == null) {
+                return;
+            }
+
             if (blockType.equals(Material.HEAVY_WEIGHTED_PRESSURE_PLATE)) {
                 if (participant.setCurrentCheckPoint(event.getClickedBlock().getLocation().clone().add(0, 1, 0))) {
                     match.broadcast(MessagesLocale.PARKOUR_CHECKPOINT,
@@ -150,11 +185,13 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onItemPickup(EntityPickupItemEvent event) {
+    public void onItemPickup(final @NotNull EntityPickupItemEvent event) {
         if (event.getEntity() instanceof Player player) {
-            if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-            Profile profile = API.getProfile(player);
+            if (player.getGameMode().equals(GameMode.CREATIVE)) {
+                return;
+            }
 
+            final Profile profile = API.getProfile(player);
             if (!profile.getState().equals(ProfileState.IN_GAME)) {
                 event.setCancelled(true);
             }
@@ -162,18 +199,25 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerBucketEmpty(PlayerBucketEmptyEvent event) {
-        Player player = event.getPlayer();
-        if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
-        Match match = profile.getMatch();
-        Location blockLocation = event.getBlock().getLocation();
+    public void onPlayerBucketEmpty(final @NotNull PlayerBucketEmptyEvent event) {
+        final Player player = event.getPlayer();
+        if (player.getGameMode().equals(GameMode.CREATIVE)) {
+            return;
+        }
+
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
+        final Match match = profile.getMatch();
+        final Location blockLocation = event.getBlock().getLocation();
         if (profile.hasState(ProfileState.IN_KIT_EDITOR)) {
             event.setCancelled(true);
             player.sendMessage(CC.color("&cYou can't place blocks here!"));
             return;
         }
+
         if (match != null && match.getKit().is(KitRule.BUILD)) {
             if (match.getState().equals(MatchState.STARTING)) {
                 event.setCancelled(true);
@@ -181,8 +225,7 @@ public class MatchListener implements Listener {
                 return;
             }
 
-            StandAloneArena arena = (StandAloneArena) match.arena;
-
+            final StandAloneArena arena = (StandAloneArena) match.arena;
             if (blockLocation.getY() >= arena.getLimit()) {
                 event.setCancelled(true);
                 player.sendMessage(CC.color("&cYou have reached build limit!"));
@@ -203,34 +246,39 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onProjectileLaunch(ProjectileLaunchEvent event) {
-        ProjectileSource shooter = event.getEntity().getShooter();
-        if (!(shooter instanceof Player player)) return;
+    public void onProjectileLaunch(final @NotNull ProjectileLaunchEvent event) {
+        final ProjectileSource shooter = event.getEntity().getShooter();
+        if (!(shooter instanceof Player player)) {
+            return;
+        }
 
-        Profile profile = API.getProfile(player);
-        Match match = profile.getMatch();
+        final Profile profile = API.getProfile(player);
+        final Match match = profile.getMatch();
         if (match == null) {
             event.setCancelled(true);
             return;
         }
+
         if (match.getState().equals(MatchState.STARTING)) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler
-    public void onEntityDamageByEntityMonitor(EntityDamageByEntityEvent event) {
+    public void onEntityDamageByEntityMonitor(final @NotNull EntityDamageByEntityEvent event) {
         if (event.getDamager() instanceof Player attacker && event.getEntity() instanceof Player player) {
-            Profile attackerProfile = API.getProfile(attacker.getUniqueId());
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
+            final Profile attackerProfile = API.getProfile(attacker.getUniqueId());
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
 
             if (profile.getMatch() == null || attackerProfile.getState().equals(ProfileState.IN_SPECTATOR)) {
                 event.setCancelled(true);
                 return;
             }
-            Match match = profile.getMatch();
 
+            final Match match = profile.getMatch();
             if (!attackerProfile.getMatch().getUuid().equals(match.getUuid())) {
                 event.setCancelled(true);
                 return;
@@ -253,18 +301,19 @@ public class MatchListener implements Listener {
                     event.setDamage(0);
                 }
             }
+
             match.getParticipant(player.getUniqueId()).setLastAttacker(match.getParticipant(attacker.getUniqueId()));
         }
     }
 
     @EventHandler(ignoreCancelled = true)
-    public void onPlayerHitEvent(EntityDamageByEntityEvent event) {
+    public void onPlayerHitEvent(final @NotNull EntityDamageByEntityEvent event) {
         if (event.getEntity() instanceof Player target && event.getDamager() instanceof Player damager) {
-            Profile targetProfile = API.getProfile(target);
-            Profile playerProfile = API.getProfile(damager.getUniqueId());
+            final Profile targetProfile = API.getProfile(target);
+            final Profile playerProfile = API.getProfile(damager.getUniqueId());
             if (targetProfile.getState() == ProfileState.IN_GAME && playerProfile.getState().equals(ProfileState.IN_GAME) && damager.getAttackCooldown() >= 0.2) {
-                Match match = targetProfile.getMatch();
-                Participant opponent = match.getParticipant(target.getUniqueId());
+                final Match match = targetProfile.getMatch();
+                final Participant opponent = match.getParticipant(target.getUniqueId());
                 match.getParticipant(damager.getUniqueId()).handleHit(opponent);
                 opponent.resetCombo();
             }
@@ -272,18 +321,31 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler(ignoreCancelled = true)
-    public void onDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
+    public void onDamage(final @NotNull EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
 
-        if (!(event.getFinalDamage() >= player.getHealth())) return;
+        if (!(event.getFinalDamage() >= player.getHealth())) {
+            return;
+        }
+
         if (player.getInventory().getItemInMainHand().getType().equals(Material.TOTEM_OF_UNDYING) ||
-                player.getInventory().getItemInOffHand().getType().equals(Material.TOTEM_OF_UNDYING)) return;
+                player.getInventory().getItemInOffHand().getType().equals(Material.TOTEM_OF_UNDYING)) {
+            return;
+        }
 
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
-        Match match = profile.getMatch();
-        if (match == null) return;
-        Participant participant = match.getParticipant(player.getUniqueId());
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
+        final Match match = profile.getMatch();
+        if (match == null) {
+            return;
+        }
+
+        final Participant participant = match.getParticipant(player.getUniqueId());
         participant.setDeathCause(DeathCause.DIED);
         match.onDeath(participant);
         player.setHealth(20.0f);
@@ -352,20 +414,23 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+    public void onPlayerInteract(final @NotNull PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
 
-        Block clickedBlock = event.getClickedBlock();
-        if (clickedBlock == null) return;
+        final Block clickedBlock = event.getClickedBlock();
+        if (clickedBlock == null) {
+            return;
+        }
 
-        Material blockType = clickedBlock.getType();
-
-        if (isStrippable(blockType)) {
+        final Material blockType = clickedBlock.getType();
+        if (this.isStrippable(blockType)) {
             event.setCancelled(true);
         }
     }
 
-    private boolean isStrippable(Material material) {
+    private boolean isStrippable(final @NotNull Material material) {
         return material == Material.OAK_LOG ||
                 material == Material.SPRUCE_LOG ||
                 material == Material.BIRCH_LOG ||
@@ -380,7 +445,7 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
-    public void onEntityDamage(EntityDamageEvent event) {
+    public void onEntityDamage(final @NotNull EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
             final Profile profile = API.getProfile(player);
             if (profile == null) {
@@ -419,17 +484,22 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onFoodLevelChange(FoodLevelChangeEvent event) {
+    public void onFoodLevelChange(final @NotNull FoodLevelChangeEvent event) {
         if (event.getEntity() instanceof Player player) {
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
-            Match match = profile.getMatch();
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
 
+            final Match match = profile.getMatch();
             if (!profile.getState().equals(ProfileState.IN_GAME)) {
                 event.setCancelled(true);
                 return;
             }
-            if (match == null) return;
+
+            if (match == null) {
+                return;
+            }
 
             if (!match.getKit().is(KitRule.HUNGER)) {
                 event.setCancelled(true);
@@ -438,12 +508,14 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerRegainHealth(EntityRegainHealthEvent event) {
+    public void onPlayerRegainHealth(final @NotNull EntityRegainHealthEvent event) {
         if (event.getEntity() instanceof Player player) {
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
 
-            Match match = profile.getMatch();
+            final Match match = profile.getMatch();
             if (event.getRegainReason() == EntityRegainHealthEvent.RegainReason.SATIATED) {
                 if (match != null && !match.getKit().is(KitRule.SATURATION_HEAL)) {
                     event.setCancelled(true);
@@ -453,7 +525,7 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onBlockBreakEvent(BlockBreakEvent event) {
+    public void onBlockBreakEvent(final @NotNull BlockBreakEvent event) {
         final Player player = event.getPlayer();
         if (player.getGameMode().equals(GameMode.CREATIVE)) {
             return;
@@ -507,14 +579,18 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler()
-    public void onBedBreak(BlockBreakEvent event) {
-        Player player = event.getPlayer();
-        Profile profile = ProfileService.get().getByUUID(player.getUniqueId());
-        Match match = profile.getMatch();
-        Material blockType = event.getBlock().getType();
-        if (match == null) return;
+    public void onBedBreak(final @NotNull BlockBreakEvent event) {
+        final Player player = event.getPlayer();
+        final Profile profile = ProfileService.get().getByUUID(player.getUniqueId());
+        final Match match = profile.getMatch();
+        final Material blockType = event.getBlock().getType();
+        if (match == null) {
+            return;
+        }
 
-        if (!match.getKit().is(KitRule.BED_WARS)) return;
+        if (!match.getKit().is(KitRule.BED_WARS)) {
+            return;
+        }
 
         if (match.getKit().is(KitRule.BED_WARS)) {
             if (blockType == Material.OAK_PLANKS || blockType == Material.END_STONE) {
@@ -524,14 +600,17 @@ public class MatchListener implements Listener {
 
         if (match.getKit().is(KitRule.BED_WARS)) {
             if (event.getBlock().getType().toString().contains("BED")) {
-                Location bed = event.getBlock().getLocation();
+                final Location bed = event.getBlock().getLocation();
 
-                Participant participant = match.getParticipant(player.getUniqueId());
-                if (participant == null) return;
-                Location spawn = match.getSpawn(participant);
-                Participant opponent = participant.getOpponent();
-                Location opponentSpawn = match.getSpawn(opponent);
-                ParticipantColor color = participant.getColor();
+                final Participant participant = match.getParticipant(player.getUniqueId());
+                if (participant == null) {
+                    return;
+                }
+
+                final Location spawn = match.getSpawn(participant);
+                final Participant opponent = participant.getOpponent();
+                final Location opponentSpawn = match.getSpawn(opponent);
+                final ParticipantColor color = participant.getColor();
 
                 if (bed.distanceSquared(spawn) > bed.distanceSquared(opponentSpawn)) {
                     event.setDropItems(false);
@@ -548,14 +627,20 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onProjectileHit(ProjectileHitEvent event) {
-        Projectile projectile = event.getEntity();
-        ProjectileSource shooter = projectile.getShooter();
+    public void onProjectileHit(final @NotNull ProjectileHitEvent event) {
+        final Projectile projectile = event.getEntity();
+        final ProjectileSource shooter = projectile.getShooter();
 
         if (shooter instanceof Player player) {
-            if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
+            if (player.getGameMode().equals(GameMode.CREATIVE)) {
+                return;
+            }
+
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
+
             if (!profile.getState().equals(ProfileState.IN_GAME)) {
                 event.setCancelled(true);
             } else {
@@ -567,17 +652,16 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onExplode(BlockExplodeEvent event) {
+    public void onExplode(final @NotNull BlockExplodeEvent event) {
         event.setYield(0);
-        Player player = getPlayer(event.getBlock().getLocation());
-
+        final Player player = getPlayer(event.getBlock().getLocation());
         if (player == null) {
             event.setCancelled(true);
             return;
         }
 
         getMatchForPlayer(player).ifPresent(match -> {
-            for (Block block : new ArrayList<>(event.blockList())) {
+            for (final Block block : new ArrayList<>(event.blockList())) {
                 if (match.getKit().is(KitRule.ALLOW_ARENA_BREAK)) {
                     if (match.getArena() instanceof StandAloneArena standAloneArena) {
                         if (!standAloneArena.getWhitelistedBlocks().contains(block.getType())) {
@@ -590,11 +674,17 @@ public class MatchListener implements Listener {
     }
 
     @EventHandler
-    public void onItemDrop(PlayerDropItemEvent event) {
-        Player player = event.getPlayer();
-        if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
+    public void onItemDrop(final @NotNull PlayerDropItemEvent event) {
+        final Player player = event.getPlayer();
+        if (player.getGameMode().equals(GameMode.CREATIVE)) {
+            return;
+        }
+
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
         if (!profile.getState().equals(ProfileState.IN_GAME)) {
             event.setCancelled(true);
         } else {
@@ -602,9 +692,8 @@ public class MatchListener implements Listener {
         }
     }
 
-    private Player getPlayer(Location location) {
+    private Player getPlayer(final @NotNull Location location) {
         Player player = null;
-
         for (Entity entity : location.getNearbyEntities(10, 10, 10)) {
             if (entity instanceof Player p) player = p;
         }
@@ -612,8 +701,8 @@ public class MatchListener implements Listener {
         return player;
     }
 
-    private Optional<Match> getMatchForPlayer(Player player) {
-        Profile profile = API.getProfile(player);
+    private Optional<Match> getMatchForPlayer(final @NotNull Player player) {
+        final Profile profile = API.getProfile(player);
         return Optional.ofNullable(profile)
                 .map(Profile::getMatch);
     }
