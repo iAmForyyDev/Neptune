@@ -283,11 +283,6 @@ public class MatchListener implements Listener {
         if (profile == null) return;
         Match match = profile.getMatch();
         if (match == null) return;
-
-        if (profile.hasState(ProfileState.IN_SPECTATOR)) {
-            event.setCancelled(true);
-        }
-
         Participant participant = match.getParticipant(player.getUniqueId());
         participant.setDeathCause(DeathCause.DIED);
         match.onDeath(participant);
@@ -387,16 +382,26 @@ public class MatchListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onEntityDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
-            Profile profile = API.getProfile(player);
-            if (profile == null) return;
-            if (event.getCause().equals(EntityDamageEvent.DamageCause.ENTITY_ATTACK)) return;
-            Match match = profile.getMatch();
+            final Profile profile = API.getProfile(player);
+            if (profile == null) {
+                return;
+            }
+
+            if (event.getCause().equals(EntityDamageEvent.DamageCause.ENTITY_ATTACK)) {
+                return;
+            }
+
+            final Match match = profile.getMatch();
             if (match == null) {
                 event.setCancelled(true);
                 return;
             }
-            Kit kit = match.getKit();
 
+            if (profile.hasState(ProfileState.IN_SPECTATOR)) {
+                event.setCancelled(true);
+            }
+
+            final Kit kit = match.getKit();
             if (match.getState().equals(MatchState.STARTING) || match.getState().equals(MatchState.ENDING)) {
                 event.setCancelled(true);
                 return;
@@ -408,10 +413,6 @@ public class MatchListener implements Listener {
             }
 
             if (!kit.is(KitRule.DAMAGE)) {
-                event.setCancelled(true);
-            }
-
-            if (profile.hasState(ProfileState.IN_SPECTATOR)) {
                 event.setCancelled(true);
             }
         }
@@ -453,30 +454,55 @@ public class MatchListener implements Listener {
 
     @EventHandler
     public void onBlockBreakEvent(BlockBreakEvent event) {
-        Player player = event.getPlayer();
-        if (player.getGameMode().equals(GameMode.CREATIVE)) return;
-        Profile profile = API.getProfile(player);
-        if (profile == null) return;
+        final Player player = event.getPlayer();
+        if (player.getGameMode().equals(GameMode.CREATIVE)) {
+            return;
+        }
+
+        final Profile profile = API.getProfile(player);
+        if (profile == null) {
+            return;
+        }
+
         if (profile.getState().equals(ProfileState.IN_LOBBY)) {
             event.setCancelled(true);
             return;
         }
+
         if (profile.getState().equals(ProfileState.IN_SPECTATOR)) {
             event.setCancelled(true);
             return;
         }
-        Match match = profile.getMatch();
-        Location blockLocation = event.getBlock().getLocation();
-        Material blockType = event.getBlock().getType();
-        if (match == null) return;
-        if (blockType.name().contains("BED")) return;
+
+        final Match match = profile.getMatch();
+        final Location blockLocation = event.getBlock().getLocation();
+        final Material blockType = event.getBlock().getType();
+        if (match == null) {
+            return;
+        }
+
+        if (blockType.name().contains("BED")) {
+            return;
+        }
+
+        if (match.getKit().is(KitRule.BUILD)) {
+            event.setCancelled(!match.getPlacedBlocks().contains(blockLocation));
+        } else {
+            event.setCancelled(true);
+        }
+
+        if (match.getKit().is(KitRule.BUILD)) {
+            event.setCancelled(!match.getPlacedBlocks().contains(blockLocation));
+        } else {
+            event.setCancelled(true);
+        }
 
         if (match.getKit().is(KitRule.ALLOW_ARENA_BREAK)) {
             if (match.getArena() instanceof StandAloneArena standAloneArena) {
                 event.setCancelled(!standAloneArena.getWhitelistedBlocks().contains(blockType));
             }
-        } else if (match.getKit().is(KitRule.BUILD)) {
-            event.setCancelled(!match.getPlacedBlocks().contains(blockLocation));
+        } else {
+            event.setCancelled(true);
         }
     }
 
