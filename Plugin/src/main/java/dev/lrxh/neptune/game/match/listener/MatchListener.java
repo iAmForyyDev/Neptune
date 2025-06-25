@@ -22,6 +22,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.damage.DamageSource;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -266,43 +267,51 @@ public final class MatchListener implements Listener {
 
     @EventHandler
     public void onEntityDamageByEntityMonitor(final @NotNull EntityDamageByEntityEvent event) {
-        if (event.getDamager() instanceof Player attacker && event.getEntity() instanceof Player player) {
-            final Profile attackerProfile = API.getProfile(attacker.getUniqueId());
-            final Profile profile = API.getProfile(player);
-            if (profile == null) {
-                return;
-            }
+        if (event.getEntity() instanceof Player player) {
+            // Experimental feature
+            final DamageSource damageSource = event.getDamageSource();
+            if (damageSource.getCausingEntity() instanceof Player attacker) {
+                final Profile attackerProfile = API.getProfile(attacker.getUniqueId());
+                final Profile profile = API.getProfile(player);
+                if (profile == null) {
+                    return;
+                }
 
-            if (profile.getMatch() == null || attackerProfile.getState().equals(ProfileState.IN_SPECTATOR)) {
-                event.setCancelled(true);
-                return;
-            }
+                if (profile.getMatch() == null || attackerProfile.getState().equals(ProfileState.IN_SPECTATOR)) {
+                    event.setCancelled(true);
+                    return;
+                }
 
-            final Match match = profile.getMatch();
-            if (!attackerProfile.getMatch().getUuid().equals(match.getUuid())) {
-                event.setCancelled(true);
-                return;
-            }
+                final Match match = profile.getMatch();
+                if (!attackerProfile.getMatch().getUuid().equals(match.getUuid())) {
+                    event.setCancelled(true);
+                    return;
+                }
 
-            if (match.getParticipant(attacker).isDead()) {
-                event.setCancelled(true);
-            }
-
-            if (match instanceof TeamFightMatch teamFightMatch) {
-                if (teamFightMatch.onSameTeam(player.getUniqueId(), attacker.getUniqueId())) {
+                if (match.getParticipant(attacker).isDead()) {
                     event.setCancelled(true);
                 }
-            }
 
-            if (!match.state.equals(MatchState.IN_ROUND)) {
-                event.setCancelled(true);
-            } else {
-                if (!match.getKit().is(KitRule.DAMAGE)) {
-                    event.setDamage(0);
+                if (match instanceof TeamFightMatch teamFightMatch) {
+                    if (player == attacker) {
+                        return;
+                    }
+
+                    if (teamFightMatch.onSameTeam(player.getUniqueId(), attacker.getUniqueId())) {
+                        event.setCancelled(true);
+                    }
                 }
-            }
 
-            match.getParticipant(player.getUniqueId()).setLastAttacker(match.getParticipant(attacker.getUniqueId()));
+                if (!match.state.equals(MatchState.IN_ROUND)) {
+                    event.setCancelled(true);
+                } else {
+                    if (!match.getKit().is(KitRule.DAMAGE)) {
+                        event.setDamage(0);
+                    }
+                }
+
+                match.getParticipant(player.getUniqueId()).setLastAttacker(match.getParticipant(attacker.getUniqueId()));
+            }
         }
     }
 
