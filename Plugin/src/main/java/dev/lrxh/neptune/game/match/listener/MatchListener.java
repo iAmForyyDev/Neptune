@@ -393,8 +393,7 @@ public final class MatchListener implements Listener {
             if (match.getState().equals(MatchState.IN_ROUND)) {
                 final Location playerLocation = player.getLocation();
                 if (match.getKit().is(KitRule.DROPPER)) {
-                    Block block = playerLocation.getBlock();
-
+                    final Block block = playerLocation.getBlock();
                     if (block.getType() == Material.WATER) {
                         match.win(participant);
                     }
@@ -601,7 +600,6 @@ public final class MatchListener implements Listener {
         if (match.getKit().is(KitRule.BED_WARS)) {
             if (event.getBlock().getType().toString().contains("BED")) {
                 final Location bed = event.getBlock().getLocation();
-
                 final Participant participant = match.getParticipant(player.getUniqueId());
                 if (participant == null) {
                     return;
