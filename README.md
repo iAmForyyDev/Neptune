@@ -1,11 +1,11 @@
-# 🌊 Neptune Practice Core (1.19 – 1.21)
-
-![Neptune Banner](https://github.com/user-attachments/assets/d044e94d-2e6f-4495-a7ed-c997b305eb4a)
-
-A powerful and highly customizable Practice Core built for Minecraft versions **1.19 – 1.21**.
-
----
-
+> **This fork was created for private use.**  
+> While the repository is public and the changes are available for anyone to use or learn from,  
+> **compatibility, maintenance, and support are not guaranteed** outside the intended environment.  
+> Use at your own discretion.
+>
+> ⚙️ **Requires Java 21 to run properly.**
+>
+> 🔄 For a stable and officially supported version, please use the [original repository](https://github.com/Devlrxxh/Neptune).
 
 <img width="2000" height="1000" alt="image(6)" src="https://github.com/user-attachments/assets/76ecdb11-ead6-4598-9d0c-4327503df5ec" />
 ---
