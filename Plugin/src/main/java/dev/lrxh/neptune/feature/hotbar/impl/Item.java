@@ -10,17 +10,20 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.List;
 import java.util.UUID;
 
 
 @Getter
 @AllArgsConstructor
 public class Item {
-    private ItemAction action;
-    private String displayName;
-    private String material;
-    private boolean enabled;
-    private byte slot;
+    private final ItemAction action;
+    private final String displayName;
+    private final String material;
+    private final List<String> lore;
+    private final boolean enabled;
+    private final byte slot;
+    private final int customModelData;
 
     public static Item getByItemStack(ProfileState profileState, ItemStack itemStack, UUID playerUUID) {
         Hotbar inventory = HotbarService.get().getItems().get(profileState);
@@ -46,7 +49,7 @@ public class Item {
         Player player = Bukkit.getPlayer(playerUUID);
         if (player == null) return new ItemStack(Material.BARRIER);
 
-        return new ItemBuilder(material, playerUUID).name(displayName).makeUnbreakable().build();
+        return new ItemBuilder(material, playerUUID).name(displayName).makeUnbreakable().lore(lore).setCustomModelData(customModelData).build();
     }
 
 }

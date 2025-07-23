@@ -2,6 +2,7 @@ package dev.lrxh.neptune.game.match;
 
 import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.Neptune;
+import dev.lrxh.neptune.events.MatchReadyEvent;
 import dev.lrxh.neptune.game.arena.Arena;
 import dev.lrxh.neptune.game.kit.Kit;
 import dev.lrxh.neptune.game.match.impl.ffa.FfaFightMatch;
@@ -12,6 +13,7 @@ import dev.lrxh.neptune.game.match.impl.team.MatchTeam;
 import dev.lrxh.neptune.game.match.impl.team.TeamFightMatch;
 import dev.lrxh.neptune.game.match.tasks.MatchStartRunnable;
 import dev.lrxh.neptune.profile.impl.Profile;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -19,11 +21,6 @@ import java.util.*;
 public class MatchService {
     private static MatchService instance;
     public final HashSet<Match> matches = new HashSet<>();
-    private final Neptune plugin;
-
-    public MatchService() {
-        this.plugin = Neptune.get();
-    }
 
     public static MatchService get() {
         if (instance == null) instance = new MatchService();
@@ -48,9 +45,13 @@ public class MatchService {
         playerBlue.setColor(ParticipantColor.BLUE);
 
         SoloFightMatch match = new SoloFightMatch(arena, kit, duel, participants, playerRed, playerBlue, rounds);
-
+        MatchReadyEvent event = new MatchReadyEvent(match);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
         matches.add(match);
-        new MatchStartRunnable(match, plugin).start(0L, 20L);
+        new MatchStartRunnable(match).start(0L, 20L);
     }
 
     public void startMatch(MatchTeam teamA, MatchTeam teamB, Kit kit, Arena arena) {
@@ -69,8 +70,14 @@ public class MatchService {
 
         TeamFightMatch match = new TeamFightMatch(arena, kit, participants, teamA, teamB);
 
+        MatchReadyEvent event = new MatchReadyEvent(match);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
+
         matches.add(match);
-        new MatchStartRunnable(match, plugin).start(0L, 20L);
+        new MatchStartRunnable(match).start(0L, 20L);
     }
 
     public void startMatch(List<Participant> participants, Kit kit, Arena arena) {
@@ -81,8 +88,14 @@ public class MatchService {
 
         FfaFightMatch match = new FfaFightMatch(arena, kit, participants);
 
+        MatchReadyEvent event = new MatchReadyEvent(match);
+        Bukkit.getPluginManager().callEvent(event);
+        if (event.isCancelled()) {
+            return;
+        }
+
         matches.add(match);
-        new MatchStartRunnable(match, plugin).start(0L, 20L);
+        new MatchStartRunnable(match).start(0L, 20L);
     }
 
     public Optional<Match> getMatch(Player player) {

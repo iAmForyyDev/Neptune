@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 import java.time.Duration;
@@ -78,11 +79,15 @@ public class PlayerUtil {
     }
 
     public ItemStack getPlayerHead(UUID playerUUID) {
-        ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);
-        SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
-        skullMeta.setOwningPlayer(Bukkit.getPlayer(playerUUID));
-        head.setItemMeta(skullMeta);
-        return head;
+        return getPlayerHead(playerUUID, 1);
+    }
+
+    public ItemStack getPlayerHead(UUID playerUUID, int amount) {
+        ItemStack itemStack = new ItemStack(Material.PLAYER_HEAD, amount);
+        SkullMeta meta = (SkullMeta) itemStack.getItemMeta();
+        meta.setOwningPlayer(Bukkit.getPlayer(playerUUID));
+        itemStack.setItemMeta(meta);
+        return itemStack;
     }
 
     public void sendMessage(UUID playerUUID, Component message) {
@@ -99,7 +104,15 @@ public class PlayerUtil {
     }
 
     public void sendTitle(Player player, TextComponent header, TextComponent footer, int duration) {
+        if (header.content().equalsIgnoreCase("NONE") && footer.content().equalsIgnoreCase("NONE")) return;
         player.showTitle(Title.title(header, footer, Title.Times.times(Duration.ofMillis(1000), Duration.ofMillis(duration * 50L), Duration.ofMillis(500))));
+    }
+
+    public int getMaxDuration(Player player, PotionEffectType type) {
+        if (player.hasMetadata("max_duration_" + type.getName())) {
+            return player.getMetadata("max_duration_" + type.getName()).get(0).asInt();
+        }
+        return 0;
     }
 
     public void doVelocityChange(UUID playerUUID) {

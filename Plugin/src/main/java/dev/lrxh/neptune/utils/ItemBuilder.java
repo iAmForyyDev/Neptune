@@ -83,8 +83,21 @@ public class ItemBuilder {
         return this;
     }
 
+    public ItemBuilder setCustomModelData(int customData) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setCustomModelData(customData);
+            item.setItemMeta(meta);
+        }
+        return this;
+    }
+
     public void resetAmount() {
         item.setAmount(1);
+    }
+
+    public ItemBuilder lore(List<String> lore) {
+        return lore(lore.toArray(new String[0]));
     }
 
     public ItemBuilder lore(List<String> lore, Player player) {

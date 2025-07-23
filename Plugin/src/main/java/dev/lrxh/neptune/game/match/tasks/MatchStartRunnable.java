@@ -1,10 +1,9 @@
 package dev.lrxh.neptune.game.match.tasks;
 
 import dev.lrxh.neptune.API;
-import dev.lrxh.neptune.Neptune;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
+import dev.lrxh.neptune.events.MatchStartEvent;
 import dev.lrxh.neptune.game.arena.impl.StandAloneArena;
-import dev.lrxh.neptune.game.kit.impl.KitRule;
 import dev.lrxh.neptune.game.match.Match;
 import dev.lrxh.neptune.game.match.impl.MatchState;
 import dev.lrxh.neptune.game.match.impl.ffa.FfaFightMatch;
@@ -23,26 +22,19 @@ import java.util.UUID;
 public class MatchStartRunnable extends NeptuneRunnable {
 
     private final Match match;
-    private final Neptune plugin;
     private int startTimer;
 
-    public MatchStartRunnable(Match match, Neptune plugin) {
+    public MatchStartRunnable(Match match) {
         this.match = match;
-        this.startTimer = match.getKit().is(KitRule.DENY_MOVEMENT) || !(match instanceof FfaFightMatch) ? 3 : 5;
-        this.plugin = plugin;
+        this.startTimer = match instanceof FfaFightMatch ? 5 : 3;
 
         match.teleportToPositions();
         match.setupParticipants();
         match.checkRules();
 
-        if (match.arena instanceof StandAloneArena standAloneArena) {
+        if (match.getArena() instanceof StandAloneArena standAloneArena) {
             standAloneArena.setUsed(true);
         }
-
-        match.forEachPlayer(player -> {
-            player.setMaxHealth(match.getKit().getHealth());
-            player.setHealth(match.getKit().getHealth());
-        });
 
         match.getTime().setStop(true);
         match.getTime().setZero();
@@ -67,13 +59,15 @@ public class MatchStartRunnable extends NeptuneRunnable {
             }
 
             stop();
+            MatchStartEvent event = new MatchStartEvent(match);
+            Bukkit.getPluginManager().callEvent(event);
             return;
         }
         if (match.getState().equals(MatchState.STARTING)) {
             match.playSound(Sound.UI_BUTTON_CLICK);
             match.sendTitle(CC.color(MessagesLocale.MATCH_STARTING_TITLE_HEADER.getString().replace("<countdown-time>", String.valueOf(startTimer))),
                     CC.color(MessagesLocale.MATCH_STARTING_TITLE_FOOTER.getString().replace("<countdown-time>", String.valueOf(startTimer))),
-                    100);
+                    19);
             match.sendMessage(MessagesLocale.MATCH_STARTING, new Replacement("<timer>", String.valueOf(startTimer)));
         }
         startTimer--;

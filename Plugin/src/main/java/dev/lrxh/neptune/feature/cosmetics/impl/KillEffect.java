@@ -22,21 +22,21 @@ public enum KillEffect {
             double x = location.getX();
             double y = location.getY() + 2.0;
             double z = location.getZ();
-            location.getWorld().strikeLightning(new Location(location.getWorld(), x, y, z));
+            location.getWorld().strikeLightningEffect(new Location(location.getWorld(), x, y, z));
         }
     },
     FIREWORKS(CosmeticsLocale.FIREWORKS_DISPLAY_NAME.getString(), Material.valueOf(CosmeticsLocale.FIREWORKS_MATERIAL.getString()),
             CosmeticsLocale.FIREWORKS_SLOT.getInt()) {
         @Override
         public void execute(Player player, Player killer) {
-            playEffect(Particle.FIREWORKS_SPARK, killer, player.getLocation(), 50, 5);
+            playEffect(Particle.FIREWORK, killer, player.getLocation(), 50, 5);
         }
     },
     ANGRY(CosmeticsLocale.ANGRY_DISPLAY_NAME.getString(), Material.valueOf(CosmeticsLocale.ANGRY_MATERIAL.getString()),
             CosmeticsLocale.ANGRY_SLOT.getInt()) {
         @Override
         public void execute(Player player, Player killer) {
-            playEffect(Particle.VILLAGER_ANGRY, killer, player.getLocation(), 25, 5);
+            playEffect(Particle.ANGRY_VILLAGER, killer, player.getLocation(), 25, 5);
         }
     },
     HEARTS(CosmeticsLocale.HEARTS_DISPLAY_NAME.getString(), Material.valueOf(CosmeticsLocale.HEARTS_MATERIAL.getString()),

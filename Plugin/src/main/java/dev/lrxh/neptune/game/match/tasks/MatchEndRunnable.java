@@ -1,7 +1,7 @@
 package dev.lrxh.neptune.game.match.tasks;
 
 import dev.lrxh.neptune.API;
-import dev.lrxh.neptune.Neptune;
+import dev.lrxh.neptune.events.MatchEndEvent;
 import dev.lrxh.neptune.feature.hotbar.HotbarService;
 import dev.lrxh.neptune.game.arena.impl.StandAloneArena;
 import dev.lrxh.neptune.game.kit.impl.KitRule;
@@ -12,19 +12,17 @@ import dev.lrxh.neptune.profile.data.ProfileState;
 import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.utils.PlayerUtil;
 import dev.lrxh.neptune.utils.tasks.NeptuneRunnable;
+import org.bukkit.Bukkit;
 
 import java.util.HashSet;
 import java.util.UUID;
 
 public class MatchEndRunnable extends NeptuneRunnable {
-    private final Neptune plugin;
-
     private final Match match;
     private int endTimer = 3;
 
-    public MatchEndRunnable(Match match, Neptune plugin) {
+    public MatchEndRunnable(Match match) {
         this.match = match;
-        this.plugin = plugin;
 
         match.getTime().setStop(true);
     }
@@ -47,21 +45,28 @@ public class MatchEndRunnable extends NeptuneRunnable {
 
             match.resetArena();
             match.forEachParticipant(participant -> {
+
                 Profile profile = API.getProfile(participant.getPlayerUUID());
+                if (profile.getMatch() != match) return;
+
                 PlayerUtil.reset(participant.getPlayer());
                 profile.setMatch(null);
                 PlayerUtil.teleportToSpawn(participant.getPlayerUUID());
                 profile.setState(profile.getGameData().getParty() == null ? ProfileState.IN_LOBBY : ProfileState.IN_PARTY);
+
                 match.forEachPlayer(player -> HotbarService.get().giveItems(player));
             });
 
             match.sendEndMessage();
 
-            if (match.arena instanceof StandAloneArena standAloneArena) {
+            if (match.getArena() instanceof StandAloneArena standAloneArena) {
                 standAloneArena.setUsed(false);
             }
 
             MatchService.get().matches.remove(match);
+            MatchEndEvent event = new MatchEndEvent(match);
+            Bukkit.getPluginManager().callEvent(event);
+            stop();
         }
         endTimer--;
     }

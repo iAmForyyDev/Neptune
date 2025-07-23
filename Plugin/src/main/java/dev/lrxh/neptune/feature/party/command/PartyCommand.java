@@ -2,6 +2,7 @@ package dev.lrxh.neptune.feature.party.command;
 
 
 import com.jonahseguin.drink.annotation.Command;
+import com.jonahseguin.drink.annotation.Require;
 import com.jonahseguin.drink.annotation.Sender;
 import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
@@ -44,7 +45,6 @@ public class PartyCommand {
         if (!party.isOpen()) {
             player.sendMessage(CC.error("Party is private"));
             return;
-
         }
         if (API.getProfile(player).getGameData().getParty() != null) {
             MessagesLocale.PARTY_ALREADY_IN.send(player.getUniqueId());
@@ -70,9 +70,15 @@ public class PartyCommand {
         Profile profile = API.getProfile(player);
         Party party = profile.getGameData().getParty();
 
-        if (party == null) {
-            MessagesLocale.PARTY_NOT_IN.send(player.getUniqueId());
+        if (player == target) {
+            MessagesLocale.PARTY_INVITE_OWN.send(player);
             return;
+        }
+
+        if (party == null) {
+            Party createdParty = profile.createParty();
+            if (createdParty == null) party = profile.getGameData().getParty();
+            else party = createdParty;
         }
 
         if (!party.getLeader().equals(player.getUniqueId())) {
@@ -85,13 +91,13 @@ public class PartyCommand {
             return;
         }
 
-        if (API.getProfile(target).getGameData().getParty() != null) {
-            MessagesLocale.PARTY_ALREADY_IN.send(player.getUniqueId());
+        if (targetProfile.getGameData().getParty() != null) {
+            MessagesLocale.PARTY_ALREADY_PARTY.send(player.getUniqueId(), new Replacement("<player>", target.getName()));
             return;
         }
 
         if (profile.getGameData().getRequests().contains(player.getUniqueId())) {
-            MessagesLocale.PARTY_ALREADY_SENT.send(player.getUniqueId(), new Replacement("<player>", player.getName()));
+            MessagesLocale.PARTY_ALREADY_SENT.send(player.getUniqueId(), new Replacement("<player>", target.getName()));
             return;
         }
 
@@ -100,18 +106,12 @@ public class PartyCommand {
             return;
         }
 
-        if (party.getMaxUsers() > party.getMaxUsers() + 1) {
+        if (party.getUsers().size() > party.getMaxUsers()) {
             MessagesLocale.PARTY_MAX_SIZE.send(player.getUniqueId());
             return;
         }
 
-        if (targetProfile.getGameData().getParty() != null) {
-            MessagesLocale.PARTY_ALREADY_PARTY.send(player.getUniqueId());
-            return;
-        }
-
         party.invite(target.getUniqueId());
-
         MessagesLocale.PARTY_INVITED.send(player.getUniqueId(), new Replacement("<player>", target.getName()));
     }
 
@@ -138,5 +138,40 @@ public class PartyCommand {
         }
 
         party.kick(target.getUniqueId());
+    }
+
+    @Command(name = "transfer", desc = "", usage = "<player>")
+    public void transfer(@Sender Player player, Player target) {
+        Party party = API.getProfile(player).getGameData().getParty();
+        Party targetParty = API.getProfile(target).getGameData().getParty();
+
+        if (party == null) {
+            MessagesLocale.PARTY_NOT_IN.send(player);
+            return;
+        }
+        if (!party.equals(targetParty)) {
+            MessagesLocale.PARTY_NOT_IN_SAME_PARTY.send(player, new Replacement("<player>", target.getName()));
+            return;
+        }
+        if (party.getLeader() != player.getUniqueId()) {
+            MessagesLocale.PARTY_NO_PERMISSION.send(player);
+            return;
+        }
+        party.transfer(player, target);
+    }
+
+    @Command(name = "advertise", desc = "")
+    @Require("neptune.party.advertise")
+    public void advertise(@Sender Player player) {
+        Party party = API.getProfile(player).getGameData().getParty();
+        if (party == null) {
+            MessagesLocale.PARTY_NOT_IN.send(player);
+            return;
+        }
+        if (party.getLeader() != player.getUniqueId()) {
+            MessagesLocale.PARTY_NO_PERMISSION.send(player);
+            return;
+        }
+        party.advertise();
     }
 }

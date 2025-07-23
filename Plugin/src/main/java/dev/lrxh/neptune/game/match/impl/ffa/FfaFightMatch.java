@@ -32,37 +32,50 @@ public class FfaFightMatch extends Match {
 
     @Override
     public void win(Participant winner) {
-        state = MatchState.ENDING;
+        setState(MatchState.ENDING);
         this.winner = winner;
         this.setEnded(true);
 
-        new MatchEndRunnable(this, plugin).start(0L, 20L);
+        new MatchEndRunnable(this).start(0L, 20L);
     }
 
     @Override
     public void end(Participant loser) {
-        state = MatchState.ENDING;
+        setState(MatchState.ENDING);
         loser.setLoser(true);
         forEachParticipant(participant -> {
             if (winner == null) return;
-            participant.sendTitle(CC.color(MessagesLocale.MATCH_WINNER_TITLE.getString()),
-                    CC.color(MessagesLocale.MATCH_TITLE_SUBTITLE.getString().replace("<player>", winner.getNameUnColored())), 100);
+            participant.sendTitle(CC.color(MessagesLocale.MATCH_WINNER_TITLE_HEADER.getString()),
+                    CC.color(MessagesLocale.MATCH_WINNER_TITLE_FOOTER.getString().replace("<player>", winner.getNameUnColored())), 100);
         });
 
         loser.playKillEffect();
 
-        new MatchEndRunnable(this, plugin).start(0L, 20L);
+        new MatchEndRunnable(this).start(0L, 20L);
     }
 
     @Override
     public void onDeath(Participant participant) {
         if (isEnded()) return;
+
         hideParticipant(participant);
         participant.setDead(true);
+        participant.setLoser(true);
 
+        Profile profile = API.getProfile(participant.getPlayerUUID());
 
-        if (!participant.isLeft()) {
+        if (!participant.isLeft() && !participant.isDisconnected()) {
             addSpectator(participant.getPlayer(), participant.getPlayer(), false, false);
+        } else {
+            if (participant.getPlayer() != null) {
+                PlayerUtil.reset(participant.getPlayer());
+                PlayerUtil.teleportToSpawn(participant.getPlayerUUID());
+            }
+
+            if (profile != null) {
+                profile.setState(profile.getGameData().getParty() == null ? ProfileState.IN_LOBBY : ProfileState.IN_PARTY);
+                profile.setMatch(null);
+            }
         }
 
         if (participant.getLastAttacker() != null) {
@@ -70,27 +83,21 @@ public class FfaFightMatch extends Match {
         }
 
         sendDeathMessage(participant);
-
-        participant.setLoser(true);
-
-        addSpectator(participant.getPlayer(), participant.getPlayer(), false, false);
-
         deadParticipants.add(participant);
 
         if (!isLastPlayerStanding()) return;
 
         winner = getLastPlayerStanding();
-        this.setEnded(true);
-
+        setEnded(true);
         end(participant);
     }
 
     private boolean isLastPlayerStanding() {
-        return participants.size() - deadParticipants.size() == 1;
+        return getParticipants().size() - deadParticipants.size() == 1;
     }
 
     private Participant getLastPlayerStanding() {
-        for (Participant participant : participants) {
+        for (Participant participant : getParticipants()) {
             if (!deadParticipants.contains(participant)) {
                 return participant;
             }
@@ -100,15 +107,18 @@ public class FfaFightMatch extends Match {
 
     @Override
     public void onLeave(Participant participant, boolean quit) {
+        if (isEnded()) return;
+
         participant.setDeathCause(DeathCause.DISCONNECT);
+        Profile profile = API.getProfile(participant.getPlayerUUID());
+
         if (quit) {
             participant.setDisconnected(true);
         } else {
             participant.setLeft(true);
-            PlayerUtil.teleportToSpawn(participant.getPlayerUUID());
-            Profile profile = API.getProfile(participant.getPlayerUUID());
-            profile.setState(profile.getGameData().getParty() == null ? ProfileState.IN_LOBBY : ProfileState.IN_PARTY);
             PlayerUtil.reset(participant.getPlayer());
+            PlayerUtil.teleportToSpawn(participant.getPlayerUUID());
+            profile.setState(profile.getGameData().getParty() == null ? ProfileState.IN_LOBBY : ProfileState.IN_PARTY);
             profile.setMatch(null);
         }
 
@@ -117,10 +127,10 @@ public class FfaFightMatch extends Match {
 
     @Override
     public void startMatch() {
-        state = MatchState.IN_ROUND;
+        setState(MatchState.IN_ROUND);
         showPlayerForSpectators();
         playSound(Sound.ENTITY_FIREWORK_ROCKET_BLAST);
-        sendTitle(CC.color(MessagesLocale.MATCH_START_TITLE.getString()), CC.color(MessagesLocale.MATCH_START_HEADER.getString()), 20);
+        sendTitle(CC.color(MessagesLocale.MATCH_START_TITLE_HEADER.getString()), CC.color(MessagesLocale.MATCH_START_TITLE_FOOTER.getString()), 20);
     }
 
     @Override
@@ -128,11 +138,11 @@ public class FfaFightMatch extends Match {
         if (winner == null) return;
         forEachParticipant(participant -> MessagesLocale.MATCH_END_DETAILS_FFA.send(participant.getPlayerUUID(),
                 new Replacement("<winner>", winner.getNameUnColored()),
-                new Replacement("<kit>", kit.getDisplayName())));
+                new Replacement("<kit>", getKit().getDisplayName())));
     }
 
     @Override
-    public void breakBed(Participant participant) {
+    public void breakBed(Participant participant, Participant breaker) {
     }
 
     @Override

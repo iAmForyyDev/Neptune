@@ -8,6 +8,7 @@ import dev.lrxh.neptune.utils.CC;
 import dev.lrxh.neptune.utils.ConfigFile;
 import dev.lrxh.neptune.utils.PlayerUtil;
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,22 +32,33 @@ public enum MessagesLocale implements IDataAccessor {
     QUEUE_REPEAT_TOGGLE("QUEUE.REPEAT.TOGGLE", DataType.BOOLEAN, "true"),
     MATCH_STARTED("MATCH.STARTED", DataType.STRING_LIST, "&aMatch Started!"),
     ROUND_STARTED("MATCH.ROUND.STARTED", DataType.STRING_LIST, "&aRound Started!"),
-    MATCH_FOUND("MATCH.FOUND", DataType.STRING_LIST, " ", "&a&lMatch Found!", " ", "&fKit: &a<kit>", "&fOpponent: &a<opponent>", "&fPing: &b<opponent-ping>", " "),
+    MATCH_FOUND("MATCH.FOUND", DataType.STRING_LIST, " ", "&a&lMatch Found!", " ", "&fKit: &a<kit>", "&fOpponent: &a<opponent>", "&fPing: &b<opponent-ping>", "&fOpponent Elo: &a<opponent-elo>", "", " "),
     MATCH_STARTING("MATCH.START.TIMER", DataType.STRING_LIST, "&fMatch starting in &b<timer>&f..."),
-    MATCH_STARTING_TITLE_HEADER("MATCH.START.TITLE-HEADER", DataType.STRING, "&e<countdown-time>"),
+    MATCH_STARTING_TITLE_HEADER("MATCH.STARTING.TITLE-HEADER", DataType.STRING, "&e<countdown-time>"),
     MATCH_OUT_OF_BOUNDS_TITLE_HEADER("MATCH.OUT_OF_BOUNDS.TITLE-HEADER", DataType.STRING, "&cYOU ARE OUT OF BOUNDS!"),
     MATCH_OUT_OF_BOUNDS_TITLE_FOOTER("MATCH.OUT_OF_BOUNDS.TITLE-FOOTER", DataType.STRING, "&cYou will start taking damage!"),
-    MATCH_STARTING_TITLE_FOOTER("MATCH.START.TITLE-FOOTER", DataType.STRING, ""),
+    RANKUP_TITLE_HEADER("RANKUP.TITLE-HEADER", DataType.STRING, "&b&lPROMOTED!"),
+    RANKUP_TITLE_FOOTER("RANKUP.TITLE-FOOTER", DataType.STRING, "&7You are now in &f<division>&7!"),
+    RANKUP_MESSAGE("RANKUP.MESSAGE", DataType.STRING_LIST, "&aCongratulations! &7You've been promoted to &f<division>&7."),
+    MATCH_STARTING_TITLE_FOOTER("MATCH.STARTING.TITLE-FOOTER", DataType.STRING, ""),
     PARKOUR_CHECKPOINT("MATCH.PARKOUR.CHECKPOINT", DataType.STRING_LIST, "&a<player> finished checkpoint <checkpoint> in <time>!"),
     PARKOUR_END("MATCH.PARKOUR.END", DataType.STRING_LIST, "&a<player> finished the parkour in <time>!"),
     ROUND_STARTING("MATCH.ROUND.START.TIMER", DataType.STRING_LIST, "&fRound starting in &b<timer>&f..."),
-    MATCH_START_TITLE("MATCH.START.TITLE", DataType.STRING, "&aFight!"),
-    MATCH_START_HEADER("MATCH.START.HEADER", DataType.STRING, ""),
-    MATCH_WINNER_TITLE("MATCH.TITLE.WINNER", DataType.STRING, "&aVICTORY!"),
-    MATCH_LOSER_TITLE("MATCH.TITLE.LOSER", DataType.STRING, "&cDEFEAT!"),
-    MATCH_TITLE_SUBTITLE("MATCH.TITLE.SUBTITLE", DataType.STRING, "&a<player> &fwon the match!"),
+    MATCH_START_TITLE_HEADER("MATCH.START.TITLE-HEADER", DataType.STRING, "&aFight!"),
+    MATCH_START_TITLE_FOOTER("MATCH.START.TITLE-FOOTER", DataType.STRING, ""),
+    MATCH_WINNER_TITLE_HEADER("MATCH.WINNER.TITLE-HEADER", DataType.STRING, "&aVICTORY!"),
+    MATCH_WINNER_TITLE_FOOTER("MATCH.WINNER.TITLE-FOOTER", DataType.STRING, "&a<player> &fwon the match!"),
+
+    MATCH_LOSER_TITLE_HEADER("MATCH.LOSER.TITLE-HEADER", DataType.STRING, "&cDEFEAT!"),
+    MATCH_LOSER_TITLE_FOOTER("MATCH.LOSER.TITLE-FOOTER", DataType.STRING, "&a<player> &fwon the match!"),
+
     MATCH_COMMA("MATCH.COMMA", DataType.STRING, "&7, "),
     MATCH_END_DETAILS_SOLO("MATCH.END_DETAILS_MESSAGE.SOLO", DataType.STRING_LIST,
+            " ",
+            "&bMatch Results:",
+            "&aWinner: &e<winner> &7| &cLoser: &e<loser>",
+            " "),
+    MATCH_END_DETAILS_DUEL("MATCH.END_DETAILS_MESSAGE.DUEL", DataType.STRING_LIST,
             " ",
             "&bMatch Results:",
             "&aWinner: &e<winner> &7| &cLoser: &e<loser>",
@@ -95,13 +107,27 @@ public enum MessagesLocale implements IDataAccessor {
             "&fRounds: &b<rounds>",
             " "),
     DUEL_DENY_SENDER("DUEL.SENDER_DENY", DataType.STRING_LIST, "&cDuel Denied."),
-    DUEL_DENY_RECEIVER("DUEL.RECEIVER_DENY", DataType.STRING_LIST, "&cYour duel to &c<player> &chas been denied."),
+    DUEL_DENY_RECEIVER("DUEL.RECEIVER_DENY", DataType.STRING_LIST, "&cYour duel to &c<player> &cwas denied."),
     DUEL_ACCEPT("DUEL.ACCEPT", DataType.STRING, "&a&l(ACCEPT)"),
     DUEL_ACCEPT_HOVER("DUEL.ACCEPT_HOVER", DataType.STRING, "&aClick to accept duel request"),
     DUEL_DENY("DUEL.DENY", DataType.STRING, "&c&l(DENY)"),
     DUEL_DENY_HOVER("DUEL.DENY_HOVER", DataType.STRING, "&cClick to deny duel request"),
     DUEL_ALREADY_SENT("DUEL.ALREADY_SENT", DataType.STRING, "&cYou have already sent <player> a duel request."),
     DUEL_EXPIRED("DUEL.EXPIRED", DataType.STRING_LIST, "&cYour duel request to <player> has expired."),
+    REMATCH_REQUEST_RECEIVER("REMATCH.SENT", DataType.STRING_LIST, " ",
+            "&e&lRematch Request",
+            "&eYou have received a rematch request from &a<sender>&e.",
+            " ",
+            "<accept> <deny>"),
+    REMATCH_REQUEST_SENDER("REMATCH.SENDER", DataType.STRING_LIST, " ",
+            "&e&lRematch Request Sent",
+            "&eYou have sent a rematch request to &a<receiver>&e.",
+            " "),
+    REMATCH_ACCEPT("REMATCH.ACCEPT", DataType.STRING, "&a&l(ACCEPT)"),
+    REMATCH_ACCEPT_HOVER("REMATCH.ACCEPT_HOVER", DataType.STRING, "&aClick to accept rematch request"),
+    REMATCH_DENY("REMATCH.DENY", DataType.STRING, "&c&l(DENY)"),
+    REMATCH_DENY_HOVER("REMATCH.DENY_HOVER", DataType.STRING, "&cClick to deny rematch request"),
+    REMATCH_EXPIRED("REMATCH.EXPIRED", DataType.STRING_LIST, "&cYour rematch request to <player> has expired."),
     SPECTATE_START("MATCH.SPECTATE.START", DataType.STRING_LIST, "&b<player> &fstarted spectating match."),
     MATCH_FORFEIT("MATCH.FORFEIT", DataType.STRING_LIST, "&cSomeone rage quit"),
     SPECTATE_STOP("MATCH.SPECTATE.STOP", DataType.STRING_LIST, "&b<player> &fstopped spectating match."),
@@ -111,11 +137,13 @@ public enum MessagesLocale implements IDataAccessor {
     LEAVE_MESSAGE("LEAVE_MESSAGE", DataType.STRING, "&8[&c-&8] &7<player> &7left"),
     PARTY_CREATE("PARTY.CREATE", DataType.STRING_LIST, "&aCreated party!"),
     PARTY_DISBANDED("PARTY.DISABLED", DataType.STRING_LIST, "&cParty has been disbanded."),
-    PARTY_INVITED("PARTY.INVITED", DataType.STRING_LIST, "&f<player> &bhas been invited you to the party!"),
+    PARTY_INVITED("PARTY.INVITED", DataType.STRING_LIST, "&f<player> &bhas been invited to the party!"),
     PARTY_NOT_IN("PARTY.NOT_IN", DataType.STRING_LIST, "&cYou are not in a party."),
     PARTY_NOT_IN_PARTY("PARTY.NOT_IN_PARTY", DataType.STRING_LIST, "&c<player> isn't in a party."),
+    PARTY_NOT_IN_SAME_PARTY("PARTY.NOT_IN_SAME_PARTY", DataType.STRING_LIST, "&c<player> isn't in your party."),
     PARTY_JOINED("PARTY.JOINED", DataType.STRING_LIST, "&f<player> &bjoined the party!"),
-    PARTY_INVITATION("PARTY.INVITATION", DataType.STRING_LIST, "&bYou have been invited to &f<leader> &bparty <accept>"),
+    PARTY_INVITATION("PARTY.INVITATION", DataType.STRING_LIST, "&bYou have been invited to &f<leader>'s &bparty <accept>"),
+    PARTY_INVITE_OWN("PARTY.INVITE_OWN", DataType.STRING_LIST, "&cYou can't invite yourself to the party."),
     PARTY_ACCEPT("PARTY.ACCEPT", DataType.STRING, "&a&l(ACCEPT)"),
     PARTY_ACCEPT_HOVER("PARTY.ACCEPT_HOVER", DataType.STRING, "&aClick to accept party request"),
     PARTY_NO_PERMISSION("PARTY.NO_PERMISSION", DataType.STRING_LIST, "&cYou do not have permission to do this."),
@@ -123,6 +151,10 @@ public enum MessagesLocale implements IDataAccessor {
     PARTY_ALREADY_IN("PARTY.ALREADY_IN", DataType.STRING_LIST, "&cYou are already in a party."),
     PARTY_ALREADY_SENT("PARTY.ALREADY_SENT", DataType.STRING_LIST, "&cYou have already sent <player> a party request."),
     PARTY_ALREADY_PARTY("PARTY.ALREADY_IN_PARTY", DataType.STRING_LIST, "&c<player> is already in a party."),
+    PARTY_TRANSFER("PARTY.TRANSFER.MEMBERS", DataType.STRING_LIST, "&f<leader> &btransferred the party to &f<target>&b."),
+    PARTY_ADVERTISE_MESSAGE("PARTY.ADVERTISE.MESSAGE", DataType.STRING_LIST, "&f<leader> &6wants you in their party! <join>"),
+    PARTY_ADVERTISE_JOIN("PARTY.ADVERTISE.JOIN", DataType.STRING, "&a(Join)"),
+    PARTY_ADVERTISE_JOIN_HOVER("PARTY.ADVERTISE.JOIN_HOVER", DataType.STRING, "&aClick to join &f<leader>&a's party."),
     PARTY_KICK("PARTY.KICK", DataType.STRING_LIST, "&f<player> &bhas been kicked from the party."),
     PARTY_LEFT("PARTY.LEFT", DataType.STRING_LIST, "&f<player> &bhas left the party."),
     PARTY_INFO("PARTY.INFO", DataType.STRING_LIST,
@@ -130,7 +162,7 @@ public enum MessagesLocale implements IDataAccessor {
             "&7&m------------------------------------------------",
             "&fPrivacy: &b<privacy>",
             "&fLeader: &b<leader>",
-            "&fSize: &b<size>",
+            "&fSize: &b<size>/<party-max>",
             "&7&m------------------------------------------------"),
     PARTY_MAX_SIZE("PARTY.MAX_SIZE_REACHED", DataType.STRING_LIST, "&cYou have reached max party size"),
     PARTY_NOT_ENOUGH_MEMBERS("PARTY.NOT_ENOUGH_MEMBERS", DataType.STRING_LIST, "&cYou need at least 2 players to start a party event."),
@@ -143,6 +175,8 @@ public enum MessagesLocale implements IDataAccessor {
             "&b/party leave",
             "&b/party kick <player>",
             "&b/party join <player>",
+            "&b/party transfer <player>",
+            "&b/party advertise",
             " "),
     PARTY_EXPIRED("PARTY.EXPIRED", DataType.STRING_LIST, "&cYour party request to &c<player> &chas expired."),
     START_FOLLOW("FOLLOW.STARTED", DataType.STRING_LIST, "&bStarted following &f<player>"),
@@ -152,7 +186,9 @@ public enum MessagesLocale implements IDataAccessor {
     BED_BREAK_TITLE("BEDWARS.OWN_BREAK.TITLE", DataType.STRING, "&cBED DESTROYED!"),
     BED_BREAK_FOOTER("BEDWARS.OWN_BREAK.FOOTER", DataType.STRING, "&fYou will no longer respawn!"),
     BLUE_BED_BROKEN_MESSAGE("BEDWARS.BLUE_BREAK.MESSAGE", DataType.STRING, "&9Blue Bed &7was broken by <player>"),
-    RED_BED_BROKEN_MESSAGE("BEDWARS.RED_BREAK.MESSAGE", DataType.STRING, "&cRed Bed &7was broken by <player>");
+    RED_BED_BROKEN_MESSAGE("BEDWARS.RED_BREAK.MESSAGE", DataType.STRING, "&cRed Bed &7was broken by <player>"),
+    MATCH_ENDERPEARL_COOLDOWN_EXPIRED("MATCH.ENDERPEARL_COOLDOWN.EXPIRED", DataType.STRING_LIST, "&aYour enderpearl cooldown expired."),
+    MATCH_ENDERPEARL_COOLDOWN_ON_GOING("MATCH.ENDERPEARL_COOLDOWN.ON_GOING", DataType.STRING_LIST, "&cEnderpearl cooldown&7: &e<time>s");
 
     private final String path;
     private final String comment;
@@ -188,24 +224,26 @@ public enum MessagesLocale implements IDataAccessor {
         if (dataType.equals(DataType.STRING_LIST)) {
             for (String message : getStringList()) {
                 if (message.equals("NONE")) continue;
-                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(message, replacements));
+                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, message, replacements));
             }
         } else if (dataType.equals(DataType.STRING)) {
             if (getString().equals("NONE")) return;
-            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(getString(), replacements));
+            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, getString(), replacements));
         }
     }
 
 
     public void send(UUID playerUUID, Replacement... replacements) {
+        Player player = Bukkit.getPlayer(playerUUID);
+        if (player == null) return;
         if (dataType.equals(DataType.STRING_LIST)) {
             for (String message : getStringList()) {
                 if (message.equals("NONE")) continue;
-                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(message, replacements));
+                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, message, replacements));
             }
         } else if (dataType.equals(DataType.STRING)) {
             if (getString().equals("NONE")) return;
-            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(getString(), replacements));
+            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, getString(), replacements));
         }
     }
 }

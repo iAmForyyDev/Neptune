@@ -2,6 +2,7 @@ package dev.lrxh.neptune.game.match.impl.team;
 
 import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
+import dev.lrxh.neptune.events.TeamMatchBedDestroyEvent;
 import dev.lrxh.neptune.game.arena.Arena;
 import dev.lrxh.neptune.game.kit.Kit;
 import dev.lrxh.neptune.game.kit.impl.KitRule;
@@ -20,6 +21,7 @@ import dev.lrxh.neptune.utils.PlayerUtil;
 import lombok.Getter;
 import lombok.Setter;
 import net.kyori.adventure.text.TextComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.Sound;
 
 import java.util.List;
@@ -45,28 +47,29 @@ public class TeamFightMatch extends Match {
 
     @Override
     public void win(Participant winner) {
-        state = MatchState.ENDING;
+        setState(MatchState.ENDING);
         MatchTeam loserTeam = teamA.isLoser() ? teamA : teamB;
         loserTeam.setLoser(true);
 
-        new MatchEndRunnable(this, plugin).start(0L, 20L);
+        new MatchEndRunnable(this).start(0L, 20L);
     }
 
     @Override
     public void end(Participant loser) {
-        state = MatchState.ENDING;
+        setState(MatchState.ENDING);
         MatchTeam winnerTeam = teamA.isLoser() ? teamB : teamA;
         MatchTeam loserTeam = getParticipantTeam(loser);
 
-        winnerTeam.sendTitle(CC.color(MessagesLocale.MATCH_WINNER_TITLE.getString()),
-                CC.color(MessagesLocale.MATCH_TITLE_SUBTITLE.getString().replace("<player>", MessagesLocale.MATCH_YOU.getString())), 100);
 
-        loserTeam.sendTitle(CC.color(MessagesLocale.MATCH_LOSER_TITLE.getString()),
-                CC.color(MessagesLocale.MATCH_TITLE_SUBTITLE.getString().replace("<player>", MessagesLocale.MATCH_OPPONENT_TEAM.getString())), 100);
+        winnerTeam.sendTitle(CC.color(MessagesLocale.MATCH_WINNER_TITLE_HEADER.getString()),
+                CC.color(MessagesLocale.MATCH_WINNER_TITLE_FOOTER.getString().replace("<player>", MessagesLocale.MATCH_YOU.getString())), 100);
+
+        loserTeam.sendTitle(CC.color(MessagesLocale.MATCH_LOSER_TITLE_HEADER.getString()),
+                CC.color(MessagesLocale.MATCH_LOSER_TITLE_FOOTER.getString().replace("<player>", MessagesLocale.MATCH_OPPONENT_TEAM.getString())), 100);
 
         loser.playKillEffect();
 
-        new MatchEndRunnable(this, plugin).start(0L, 20L);
+        new MatchEndRunnable(this).start(0L, 20L);
     }
 
 
@@ -77,7 +80,7 @@ public class TeamFightMatch extends Match {
 
         forEachParticipant(participant -> MessagesLocale.MATCH_END_DETAILS_TEAM.send(participant.getPlayerUUID(),
                 new Replacement("<losers>", loserTeam.getTeamNames()),
-                new Replacement("<kit>", kit.getDisplayName()),
+                new Replacement("<kit>", getKit().getDisplayName()),
                 new Replacement("<winners_points>", String.valueOf(winnerTeam.getPoints())),
                 new Replacement("<losers_points>", String.valueOf(loserTeam.getPoints())),
                 new Replacement("<winners>", winnerTeam.getTeamNames())));
@@ -85,7 +88,7 @@ public class TeamFightMatch extends Match {
 
 
     @Override
-    public void breakBed(Participant participant) {
+    public void breakBed(Participant participant, Participant breaker) {
         MatchTeam team = getParticipantTeam(participant);
 
         team.setBedBroken(true);
@@ -93,14 +96,17 @@ public class TeamFightMatch extends Match {
 
         MatchTeam enemy = team.equals(teamA) ? teamB : teamA;
 
-        if (rounds > 1) {
+        if (getRounds() > 1) {
             enemy.addPoint();
-            if (enemy.getPoints() < rounds) {
+            if (enemy.getPoints() < getRounds()) {
 
-                state = MatchState.STARTING;
+                setState(MatchState.STARTING);
                 new MatchSecondRoundRunnable(this, participant).start(0L, 20L);
             }
         }
+
+        TeamMatchBedDestroyEvent event = new TeamMatchBedDestroyEvent(this, team, breaker);
+        Bukkit.getPluginManager().callEvent(event);
     }
 
     @Override
@@ -115,8 +121,11 @@ public class TeamFightMatch extends Match {
 
         participant.setDead(true);
 
+        MatchTeam team = getParticipantTeam(participant);
+        team.getDeadParticipants().add(participant);
+
         if (!participant.isDisconnected() && !participant.isLeft()) {
-            if (kit.is(KitRule.BED_WARS)) {
+            if (getKit().is(KitRule.BED_WARS)) {
                 if (!participant.isBedBroken()) {
                     new MatchRespawnRunnable(this, participant).start(0L, 20L);
                     return;
@@ -130,22 +139,18 @@ public class TeamFightMatch extends Match {
             }
 
             sendDeathMessage(participant);
-
-            MatchTeam team = getParticipantTeam(participant);
-            team.getDeadParticipants().add(participant);
-
-            if (team.getDeadParticipants().size() == team.getParticipants().size()) {
-                team.setLoser(true);
-                this.setEnded(true);
-            }
-
-            if (!team.isLoser()) return;
-
-            PlayerUtil.doVelocityChange(participant.getPlayerUUID());
         }
 
+        // Only end match if everyone on the team is out
+        boolean allOut = team.getParticipants().stream()
+                .allMatch(p -> p.isDead() || p.isDisconnected() || p.isLeft());
 
-        end(participant);
+        if (allOut) {
+            team.setLoser(true);
+            this.setEnded(true);
+            PlayerUtil.doVelocityChange(participant.getPlayerUUID());
+            end(participant);
+        }
     }
 
     public boolean onSameTeam(UUID playerUUID, UUID otherUUID) {
@@ -157,16 +162,18 @@ public class TeamFightMatch extends Match {
 
     @Override
     public void onLeave(Participant participant, boolean quit) {
+        if (isEnded()) return;
+
         participant.setDeathCause(DeathCause.DISCONNECT);
         sendDeathMessage(participant);
         if (quit) {
             participant.setDisconnected(true);
         } else {
             participant.setLeft(true);
+            PlayerUtil.reset(participant.getPlayer());
             PlayerUtil.teleportToSpawn(participant.getPlayerUUID());
             Profile profile = API.getProfile(participant.getPlayerUUID());
             profile.setState(profile.getGameData().getParty() == null ? ProfileState.IN_LOBBY : ProfileState.IN_PARTY);
-            PlayerUtil.reset(participant.getPlayer());
             profile.setMatch(null);
         }
 
@@ -175,9 +182,9 @@ public class TeamFightMatch extends Match {
 
     @Override
     public void startMatch() {
-        state = MatchState.IN_ROUND;
+        setState(MatchState.IN_ROUND);
         showPlayerForSpectators();
         playSound(Sound.ENTITY_FIREWORK_ROCKET_BLAST);
-        sendTitle(CC.color(MessagesLocale.MATCH_START_TITLE.getString()), CC.color(MessagesLocale.MATCH_START_HEADER.getString()), 10);
+        sendTitle(CC.color(MessagesLocale.MATCH_START_TITLE_FOOTER.getString()), CC.color(MessagesLocale.MATCH_START_TITLE_FOOTER.getString()), 10);
     }
 }

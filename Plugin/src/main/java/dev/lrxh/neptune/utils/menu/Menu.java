@@ -1,9 +1,12 @@
 package dev.lrxh.neptune.utils.menu;
 
+import dev.lrxh.neptune.Neptune;
 import dev.lrxh.neptune.configs.impl.MenusLocale;
 import dev.lrxh.neptune.utils.CC;
 import dev.lrxh.neptune.utils.ServerUtils;
 import dev.lrxh.neptune.utils.menu.impl.DisplayButton;
+import lombok.Getter;
+import lombok.Setter;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -13,17 +16,26 @@ import org.bukkit.inventory.ItemStack;
 import java.util.List;
 
 public abstract class Menu {
-    protected final int size;
-    protected final boolean updateOnClick;
+    @Getter
+    private final int size;
+    @Getter
+    private final boolean updateOnClick;
     private final String title;
     private final Filter filter;
     private List<Button> buttons;
+
+    @Getter
+    @Setter
+    private boolean updateEveryTick;
+
+    private Inventory inventory;
 
     public Menu(String title, int size, Filter filter) {
         this.title = title;
         this.size = size;
         this.filter = filter;
         this.updateOnClick = false;
+        this.updateEveryTick = false;
     }
 
     public Menu(int size, Filter filter) {
@@ -31,6 +43,7 @@ public abstract class Menu {
         this.size = size;
         this.filter = filter;
         this.updateOnClick = false;
+        this.updateEveryTick = false;
     }
 
     public Menu(String title, int size, Filter filter, boolean updateOnClick) {
@@ -38,6 +51,7 @@ public abstract class Menu {
         this.size = size;
         this.filter = filter;
         this.updateOnClick = updateOnClick;
+        this.updateEveryTick = false;
     }
 
     public abstract List<Button> getButtons(Player player);
@@ -55,15 +69,29 @@ public abstract class Menu {
     }
 
     public void open(Player player) {
-        String title;
-        if (this.title.isEmpty()) {
-            title = getTitle(player);
-        } else {
-            title = this.title;
-        }
+        Bukkit.getScheduler().runTask(Neptune.get(), () -> {
+            if (MenuService.get().getOpenedMenus().containsKey(player.getUniqueId())) {
+                MenuService.get().remove(player);
+            }
 
-        Inventory inventory = Bukkit.createInventory(player, size, CC.color(title));
+            String title;
+            if (this.title.isEmpty()) {
+                title = getTitle(player);
+            } else {
+                title = this.title;
+            }
 
+            Inventory inventory = Bukkit.createInventory(player, size, CC.color(title));
+            this.inventory = inventory;
+            player.openInventory(inventory);
+
+            update(player);
+
+            MenuService.get().add(player, this);
+        });
+    }
+
+    public void update(Player player) {
         buttons = getButtons(player);
         switch (filter) {
             case FILL -> {
@@ -96,11 +124,7 @@ public abstract class Menu {
         for (Button button : buttons) {
             set(inventory, button.getSlot(), button.getItemStack(player));
         }
-
-        player.openInventory(inventory);
         player.updateInventory();
-
-        MenuService.get().add(player, this);
     }
 
     public Button getButton(int slot) {

@@ -8,9 +8,11 @@ import dev.lrxh.neptune.providers.manager.IService;
 import dev.lrxh.neptune.providers.manager.Value;
 import dev.lrxh.neptune.utils.ConfigFile;
 import dev.lrxh.neptune.utils.ItemUtils;
+import dev.lrxh.neptune.utils.PotionEffectUtils;
 import lombok.Getter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
 
 import java.util.*;
 
@@ -38,6 +40,7 @@ public class KitService extends IService {
                 int slot = config.getInt(path + "slot", kits.size() + 1);
                 int kitEditorSlot = config.getInt(path + "kitEditor-slot", slot);
                 double health = config.getDouble(path + "health", 20);
+                double damageMultiplier = config.getDouble(path + "damage-multiplier", 1.0);
 
                 HashSet<Arena> arenas = new HashSet<>();
                 if (!config.getStringList(path + "arenas").isEmpty()) {
@@ -51,7 +54,14 @@ public class KitService extends IService {
                     rules.put(kitRule, config.getBoolean(path + kitRule.getSaveName(), false));
                 }
 
-                kits.add(new Kit(kitName, displayName, items, arenas, icon, rules, slot, health, kitEditorSlot));
+                List<PotionEffect> potionEffects = new ArrayList<>();
+                if (!config.getStringList(path + "potionEffects").isEmpty()) {
+                    for (String potion : config.getStringList(path + "potionEffects")) {
+                        potionEffects.add(PotionEffectUtils.deserialize(potion));
+                    }
+                }
+
+                kits.add(new Kit(kitName, displayName, items, arenas, icon, rules, slot, health, kitEditorSlot, potionEffects, damageMultiplier));
             }
         }
     }
@@ -74,10 +84,12 @@ public class KitService extends IService {
             values.add(new Value("displayName", kit.getDisplayName()));
             values.add(new Value("items", ItemUtils.serialize(kit.getItems())));
             values.add(new Value("arenas", kit.getArenasAsString()));
+            values.add(new Value("potionEffects", kit.getPotionsAsString()));
             values.add(new Value("icon", ItemUtils.serialize(kit.getIcon())));
             values.add(new Value("slot", kit.getSlot()));
             values.add(new Value("health", kit.getHealth()));
             values.add(new Value("kitEditor-slot", kit.getKitEditorSlot()));
+            values.add(new Value("damage-multiplier", kit.getDamageMultiplier()));
 
             for (Map.Entry<KitRule, Boolean> kitRuleEntry : kit.getRules().entrySet()) {
                 values.add(new Value(kitRuleEntry.getKey().getSaveName(), kit.is(kitRuleEntry.getKey())));

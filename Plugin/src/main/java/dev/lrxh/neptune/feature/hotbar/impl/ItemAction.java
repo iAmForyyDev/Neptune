@@ -2,24 +2,28 @@ package dev.lrxh.neptune.feature.hotbar.impl;
 
 import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
+import dev.lrxh.neptune.feature.divisions.menu.DivisionsMenu;
+import dev.lrxh.neptune.feature.leaderboard.impl.LeaderboardType;
+import dev.lrxh.neptune.feature.leaderboard.menu.LeaderboardMenu;
 import dev.lrxh.neptune.feature.party.Party;
 import dev.lrxh.neptune.feature.party.menu.PartySettingsMenu;
+import dev.lrxh.neptune.feature.party.menu.buttons.events.PartyDuelMenu;
 import dev.lrxh.neptune.feature.party.menu.buttons.events.PartyEventsMenu;
 import dev.lrxh.neptune.feature.queue.QueueEntry;
 import dev.lrxh.neptune.feature.queue.QueueService;
 import dev.lrxh.neptune.feature.queue.menu.QueueMenu;
-import dev.lrxh.neptune.game.divisions.menu.DivisionsMenu;
+import dev.lrxh.neptune.feature.settings.menu.SettingsMenu;
+import dev.lrxh.neptune.game.arena.Arena;
+import dev.lrxh.neptune.game.duel.DuelRequest;
 import dev.lrxh.neptune.game.kit.menu.StatsMenu;
 import dev.lrxh.neptune.game.kit.menu.editor.KitEditorMenu;
-import dev.lrxh.neptune.game.leaderboard.impl.LeaderboardType;
-import dev.lrxh.neptune.game.leaderboard.menu.LeaderboardMenu;
 import dev.lrxh.neptune.game.match.Match;
 import dev.lrxh.neptune.game.match.impl.participant.Participant;
+import dev.lrxh.neptune.game.match.impl.solo.SoloFightMatch;
 import dev.lrxh.neptune.game.match.menu.MatchListMenu;
 import dev.lrxh.neptune.profile.data.ProfileState;
 import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.providers.clickable.Replacement;
-import dev.lrxh.neptune.settings.menu.SettingsMenu;
 import dev.lrxh.neptune.utils.CC;
 import dev.lrxh.neptune.utils.PlayerUtil;
 import org.bukkit.entity.Player;
@@ -68,7 +72,7 @@ public enum ItemAction {
     LEADERBOARDS() {
         @Override
         public void execute(Player player) {
-            new LeaderboardMenu(LeaderboardType.WINS).open(player);
+            new LeaderboardMenu(LeaderboardType.KILLS).open(player);
         }
     },
     PARTY_CREATE() {
@@ -113,7 +117,19 @@ public enum ItemAction {
                 MessagesLocale.PARTY_NOT_ENOUGH_MEMBERS.send(player.getUniqueId());
                 return;
             }
+
             new PartyEventsMenu(API.getProfile(player.getUniqueId()).getGameData().getParty()).open(player);
+        }
+    },
+    PARTY_DUEL() {
+        @Override
+        public void execute(Player player) {
+            Party party = API.getProfile(player.getUniqueId()).getGameData().getParty();
+            if (!party.getLeader().equals(player.getUniqueId())) {
+                MessagesLocale.PARTY_NO_PERMISSION.send(player.getUniqueId());
+                return;
+            }
+            new PartyDuelMenu(API.getProfile(player.getUniqueId()).getGameData().getParty()).open(player);
         }
     },
     PARTY_SETTINGS() {
@@ -147,6 +163,26 @@ public enum ItemAction {
             profile.setMatch(null);
 
             QueueService.get().add(new QueueEntry(match.getKit(), player.getUniqueId()), true);
+        }
+    },
+    REMATCH() {
+        @Override
+        public void execute(Player player) {
+            Profile profile = API.getProfile(player);
+            if (profile == null) return;
+            SoloFightMatch match = (SoloFightMatch) profile.getMatch();
+            if (match == null) return;
+            Arena arena = match.getKit().getRandomArena();
+            if (arena == null) {
+                player.sendMessage(CC.error("No arenas were found!"));
+                return;
+            }
+            DuelRequest duelRequest = new DuelRequest(profile.getPlayerUUID(), match.getKit(), arena, false, match.getRounds());
+            Player opponent = match.getParticipant(player).getOpponent().getPlayer();
+            if (opponent == null) return;
+            Profile opponentProfile = API.getProfile(opponent);
+            if (opponentProfile == null) return;
+            opponentProfile.sendRematch(duelRequest);
         }
     },
     SETTINGS() {

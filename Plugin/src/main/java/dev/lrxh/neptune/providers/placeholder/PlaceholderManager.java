@@ -19,7 +19,7 @@ public class PlaceholderManager {
                 new InMatchPlaceholder(),
                 new QueuedPlaceholder(),
                 new WinsPlaceholder(),
-                new LossesPlaceholder(),
+                new MaxPingPlaceholder(),
                 new CurrentStreakPlaceholder(),
                 new BestStreakPlaceholder(),
                 new LastKitPlaceholder(),
@@ -32,7 +32,45 @@ public class PlaceholderManager {
                 new LeaderboardPlaceholder(),
                 new KitInMatchPlaceholder(),
                 new KitQueuedPlaceholder(),
-                new WinRatePlaceholder()
+                new WinRatePlaceholder(),
+                new OpponentPlaceholder(),
+                new OpponentPingPlaceholder(),
+                new ComboPlaceholder(),
+                new OpponentComboPlaceholder(),
+                new HitsPlaceholder(),
+                new OpponentHitsPlaceholder(),
+                new HitDifferencePlaceholder(),
+                new TimePlaceholder(),
+                new KitPlaceholder(),
+                new ArenaPlaceholder(),
+                new MaxPointsPlaceholder(),
+                new PointsPlaceholder(),
+                new OpponentPointsPlaceholder(),
+                new BedBrokenPlaceholder(),
+                new OpponentBedBrokenPlaceholder(),
+                new PlayerRedNamePlaceholder(),
+                new PlayerBlueNamePlaceholder(),
+                new PlayerRedPingPlaceholder(),
+                new PlayerBluePingPlaceholder(),
+                new RedBedBrokenPlaceholder(),
+                new BlueBedBrokenPlaceholder(),
+                new AlivePlaceholder(),
+                new OpponentAlivePlaceholder(),
+                new MaxPlaceholder(),
+                new OpponentMaxPlaceholder(),
+                new InQueuePlaceholder(),
+                new IsTeamMatchPlaceholder(),
+                new KitEloPlaceholder(),
+                new DivisionPlaceholder(),
+                new EloPlaceholder(),
+                new LeaderPlaceholder(),
+                new SizePlaceholder(),
+                new RedAlivePlaceholder(),
+                new BlueAlivePlaceholder(),
+                new RedMaxPlaceholder(),
+                new BlueMaxPlaceholder(),
+                new LossesPlaceholder(),
+                new PartyMaxPlaceholder()
         ));
     }
 
@@ -44,9 +82,10 @@ public class PlaceholderManager {
 
     public String parse(OfflinePlayer player, String text) {
         for (Placeholder placeholder : placeholders) {
-            text = placeholder.parse(player, text);
+            if (placeholder.match(text)) {
+                text = placeholder.parse(player, text);
+            }
         }
-
         return text;
     }
 }

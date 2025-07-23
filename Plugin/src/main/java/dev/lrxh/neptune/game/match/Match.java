@@ -4,7 +4,8 @@ import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.Neptune;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
 import dev.lrxh.neptune.configs.impl.ScoreboardLocale;
-import dev.lrxh.neptune.configs.impl.SettingsLocale;
+import dev.lrxh.neptune.events.MatchSpectatorAddEvent;
+import dev.lrxh.neptune.events.MatchSpectatorRemoveEvent;
 import dev.lrxh.neptune.game.arena.Arena;
 import dev.lrxh.neptune.game.kit.Kit;
 import dev.lrxh.neptune.game.kit.impl.KitRule;
@@ -19,7 +20,6 @@ import dev.lrxh.neptune.profile.data.ProfileState;
 import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.providers.clickable.Replacement;
 import dev.lrxh.neptune.providers.placeholder.PlaceholderUtil;
-import dev.lrxh.neptune.utils.BlockChanger;
 import dev.lrxh.neptune.utils.CC;
 import dev.lrxh.neptune.utils.PlayerUtil;
 import dev.lrxh.neptune.utils.Time;
@@ -28,9 +28,11 @@ import lombok.Getter;
 import lombok.Setter;
 import net.kyori.adventure.text.TextComponent;
 import org.bukkit.*;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.scoreboard.Criteria;
 import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
@@ -43,18 +45,17 @@ import java.util.function.Consumer;
 @Setter
 public abstract class Match {
     public final List<UUID> spectators = new ArrayList<>();
-    public final Neptune plugin = Neptune.get();
     private final UUID uuid = UUID.randomUUID();
     private final HashSet<Location> placedBlocks = new HashSet<>();
     private final HashMap<Location, BlockData> changes = new HashMap<>();
     private final Set<Location> liquids = new HashSet<>();
     private final HashSet<Entity> entities = new HashSet<>();
     private final Time time = new Time();
-    public MatchState state;
-    public Arena arena;
-    public Kit kit;
-    public List<Participant> participants;
-    public int rounds;
+    private MatchState state;
+    private Arena arena;
+    private Kit kit;
+    private List<Participant> participants;
+    private int rounds;
     private boolean duel;
     private boolean ended;
 
@@ -68,16 +69,6 @@ public abstract class Match {
         } else {
             return arena.getBlueSpawn();
         }
-    }
-
-    public List<Player> getPlayers() {
-        List<Player> players = new ArrayList<>();
-
-        for (Participant participant : participants) {
-            players.add(participant.getPlayer());
-        }
-
-        return players;
     }
 
     public Participant getParticipant(UUID playerUUID) {
@@ -113,19 +104,29 @@ public abstract class Match {
         profile.setState(ProfileState.IN_SPECTATOR);
         if (add) spectators.add(player.getUniqueId());
 
-        forEachPlayer(participiantPlayer -> player.showPlayer(Neptune.get(), participiantPlayer));
-        forEachPlayer(participiantPlayer -> participiantPlayer.hidePlayer(Neptune.get(), player));
+        forEachPlayer(participiantPlayer -> {
+            player.showPlayer(Neptune.get(), participiantPlayer);
+            participiantPlayer.hidePlayer(Neptune.get(), player);
+        });
 
         if (sendMessage) broadcast(MessagesLocale.SPECTATE_START, new Replacement("<player>", player.getName()));
 
-        player.setGameMode(GameMode.SPECTATOR);
-        player.teleport(target.getLocation());
-        player.setAllowFlight(true);
-        player.setFlying(true);
+        player.teleportAsync(target.getLocation()).thenAccept(bool -> {
+            player.setAllowFlight(true);
+            player.setFlying(true);
+            player.setGameMode(GameMode.SPECTATOR);
+        });
+        MatchSpectatorAddEvent event = new MatchSpectatorAddEvent(this, player);
+        Bukkit.getPluginManager().callEvent(event);
     }
 
     public void showPlayerForSpectators() {
-        forEachSpectator(player -> forEachPlayer(participiantPlayer -> player.showPlayer(Neptune.get(), participiantPlayer)));
+        forEachSpectator(player -> {
+            forEachPlayer(participiantPlayer -> {
+                player.showPlayer(Neptune.get(), participiantPlayer);
+                participiantPlayer.hidePlayer(Neptune.get(), player);
+            });
+        });
     }
 
     public void forEachPlayer(Consumer<Player> action) {
@@ -166,24 +167,11 @@ public abstract class Match {
     }
 
     public void resetArena() {
-        if (SettingsLocale.ARENA_RESET_EXPERIMENTAL.getBoolean()) {
-            Set<BlockChanger.BlockSnapshot> blocks = new HashSet<>();
-
-            for (Location location : liquids) {
-                blocks.add(new BlockChanger.BlockSnapshot(location, Material.AIR));
-            }
-
-            for (Map.Entry<Location, BlockData> entry : changes.entrySet()) {
-                blocks.add(new BlockChanger.BlockSnapshot(entry.getKey(), entry.getValue()));
-            }
-            BlockChanger.setBlocksAsync(arena.getWorld(), blocks);
-        } else {
-            for (Location location : liquids) {
-                arena.getWorld().setBlockData(location, Material.AIR.createBlockData());
-            }
-            for (Map.Entry<Location, BlockData> entry : changes.entrySet()) {
-                arena.getWorld().setBlockData(entry.getKey(), entry.getValue());
-            }
+        for (Location location : liquids) {
+            arena.getWorld().setBlockData(location, Material.AIR.createBlockData());
+        }
+        for (Map.Entry<Location, BlockData> entry : changes.entrySet()) {
+            arena.getWorld().setBlockData(entry.getKey(), entry.getValue());
         }
 
         removeEntities();
@@ -247,6 +235,8 @@ public abstract class Match {
         if (sendMessage) {
             broadcast(MessagesLocale.SPECTATE_STOP, new Replacement("<player>", player.getName()));
         }
+        MatchSpectatorRemoveEvent event = new MatchSpectatorRemoveEvent(this, player);
+        Bukkit.getPluginManager().callEvent(event);
     }
 
     public void setupPlayer(UUID playerUUID) {
@@ -259,6 +249,15 @@ public abstract class Match {
         Participant participant = getParticipant(playerUUID);
         participant.setLastAttacker(null);
         kit.giveLoadout(participant);
+        player.getAttribute(Attribute.MAX_HEALTH).setBaseValue(kit.getHealth());
+        player.setHealth(kit.getHealth());
+        player.sendHealthUpdate();
+
+        for (PotionEffect potionEffect : kit.getPotionEffects()) {
+            if (potionEffect != null) {
+                player.addPotionEffect(potionEffect);
+            }
+        }
     }
 
     public void broadcast(MessagesLocale messagesLocale, Replacement... replacements) {
@@ -342,7 +341,8 @@ public abstract class Match {
             } catch (IllegalStateException ignored) {
             }
 
-            player.sendHealthUpdate();
+
+            player.damage(0.001);
         });
     }
 
@@ -356,6 +356,7 @@ public abstract class Match {
 
     public void setupParticipants() {
         forEachPlayer(player -> setupPlayer(player.getUniqueId()));
+        forEachParticipant(Participant::reset);
     }
 
     public void sendDeathMessage(Participant deadParticipant) {
@@ -399,7 +400,7 @@ public abstract class Match {
 
     public abstract void sendEndMessage();
 
-    public abstract void breakBed(Participant participant);
+    public abstract void breakBed(Participant participant, Participant breaker);
 
     public abstract void sendTitle(Participant participant, TextComponent header, TextComponent footer, int duration);
 }

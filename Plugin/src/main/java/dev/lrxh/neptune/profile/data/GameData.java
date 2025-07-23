@@ -7,6 +7,7 @@ import dev.lrxh.neptune.feature.party.Party;
 import dev.lrxh.neptune.game.kit.Kit;
 import dev.lrxh.neptune.game.kit.KitService;
 import dev.lrxh.neptune.game.match.Match;
+import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.providers.request.Request;
 import dev.lrxh.neptune.utils.TtlAction;
 import dev.lrxh.neptune.utils.TtlHashMap;
@@ -33,7 +34,7 @@ public class GameData {
     private GlobalStats globalStats;
     private String lastPlayedKit;
 
-    public GameData() {
+    public GameData(Profile profile) {
         this.kitData = new HashMap<>();
         this.matchHistories = new ArrayList<>();
         this.gson = new GsonBuilder().setPrettyPrinting().create();
@@ -41,7 +42,7 @@ public class GameData {
         for (Kit kit : KitService.get().kits) {
             kitData.put(kit, new KitData());
         }
-        this.globalStats = new GlobalStats();
+        this.globalStats = new GlobalStats(profile);
         this.lastPlayedKit = "";
     }
 
@@ -53,49 +54,38 @@ public class GameData {
         return kitData.get(kit);
     }
 
-    public int countGlobalLosses() {
-        int value = 0;
-        for (KitData kitData : kitData.values()) {
-            value += kitData.getLosses();
-        }
-        return value;
-    }
-
-    public int countGlobalCurrentStreak() {
-        int value = 0;
-        for (KitData kitData : kitData.values()) {
-            value += kitData.getCurrentStreak();
-        }
-        return value;
-    }
-
-    public void run(Kit kit, boolean won) {
+    public boolean run(Kit kit, boolean won) {
         lastPlayedKit = kit.getName();
         KitData kitData = this.kitData.get(kit);
+
+        boolean value = false;
+
         if (won) {
-            updateWin(kitData);
+            value = updateWin(kitData);
         } else {
             updateLosses(kitData);
         }
+
+        globalStats.update();
+
+        return value;
     }
 
-    private void updateWin(KitData kitData) {
-        kitData.setWins(kitData.getWins() + 1);
+    private boolean updateWin(KitData kitData) {
+        kitData.setKills(kitData.getKills() + 1);
         updateWinStreak(kitData, true);
-        globalStats.addWins(1);
-        kitData.updateDivision();
+        return kitData.updateElo(true);
     }
 
     private void updateLosses(KitData kitData) {
-        globalStats.addLosses(1);
-        kitData.setLosses(kitData.getLosses() + 1);
+        kitData.setDeaths(kitData.getDeaths() + 1);
+        kitData.updateElo(false);
         updateWinStreak(kitData, false);
     }
 
     private void updateWinStreak(KitData kitData, boolean won) {
         if (won) {
             kitData.setCurrentStreak(kitData.getCurrentStreak() + 1);
-            globalStats.addCurrentStreak(1);
 
             if (kitData.getCurrentStreak() > kitData.getBestStreak()) {
                 kitData.setBestStreak(kitData.getCurrentStreak());

@@ -39,15 +39,24 @@ public class Participant {
     private int points = 0;
     private boolean frozen = false;
     private boolean bedBroken;
+    private Time time;
+
+    // ELO CHANGES
+    private int eloChange = 0;
 
     // PARKOUR GAME RULE
     private Location currentCheckPoint;
     private int checkPoint = 0;
-    private Time time;
 
     public Participant(Player player) {
         this.playerUUID = player.getUniqueId();
         this.name = player.getName();
+    }
+
+    public void reset() {
+        this.bedBroken = false;
+        this.currentCheckPoint = null;
+        this.checkPoint = 0;
     }
 
     public void setDead(boolean dead) {
@@ -110,12 +119,20 @@ public class Participant {
         profile.getSettingData().getKillEffect().execute(player, killer);
     }
 
+    public Profile getProfile() {
+        return API.getProfile(playerUUID);
+    }
+
     public void sendTitle(TextComponent header, TextComponent footer, int duration) {
-        PlayerUtil.sendTitle(getPlayer(), header, footer, duration);
+        Player player = getPlayer();
+        if (player == null) return;
+        PlayerUtil.sendTitle(player, header, footer, duration);
     }
 
     public void sendTitle(MessagesLocale header, MessagesLocale footer, int duration) {
-        PlayerUtil.sendTitle(getPlayer(), CC.color(header.getString()), CC.color(footer.getString()), duration);
+        Player player = getPlayer();
+        if (player == null) return;
+        PlayerUtil.sendTitle(player, CC.color(header.getString()), CC.color(footer.getString()), duration);
     }
 
     public void sendMessage(TextComponent message) {
@@ -123,7 +140,9 @@ public class Participant {
     }
 
     public void sendMessage(MessagesLocale message, Replacement... replacements) {
-        message.send(getPlayer(), replacements);
+        Player player = getPlayer();
+        if (player == null) return;
+        message.send(player, replacements);
     }
 
     public void resetCombo() {

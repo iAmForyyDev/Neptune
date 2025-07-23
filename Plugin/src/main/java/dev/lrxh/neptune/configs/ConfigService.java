@@ -17,6 +17,7 @@ public class ConfigService {
     private ConfigFile menusConfig;
     private ConfigFile divisionsConfig;
     private ConfigFile cosmeticsConfig;
+    private ConfigFile killMessagesConfig;
 
     public static ConfigService get() {
         if (instance == null) instance = new ConfigService();
@@ -34,6 +35,7 @@ public class ConfigService {
         menusConfig = new ConfigFile("menus");
         divisionsConfig = new ConfigFile("divisions");
         cosmeticsConfig = new ConfigFile("cosmetics");
+        killMessagesConfig = new ConfigFile("kill-messages");
 
         initialize();
     }
@@ -44,7 +46,6 @@ public class ConfigService {
         SettingsLocale.SPAWN_LOCATION.load();
         MenusLocale.FILTER_NAME.load();
         ScoreboardLocale.TITLE.load();
-        DivisionsLocale.DIAMOND_1.load();
         CosmeticsLocale.LIGHTNING_DISPLAY_NAME.load();
     }
 }

@@ -8,6 +8,8 @@ import dev.lrxh.neptune.game.kit.impl.KitRule;
 import dev.lrxh.neptune.game.match.Match;
 import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.utils.EntityUtils;
+import dev.lrxh.neptune.utils.ServerUtils;
+import dev.lrxh.neptune.utils.WorldUtils;
 import io.papermc.paper.event.block.BlockBreakBlockEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -15,316 +17,369 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.EnderCrystal;
-import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.*;
-import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.inventory.ItemStack;
-import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class BlockTracker implements Listener {
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onPlace(BlockPlaceEvent event) {
-        getMatchForPlayer(event.getPlayer()).ifPresent(match ->
-                match.getChanges().computeIfAbsent(event.getBlock().getLocation(), location -> event.getBlockReplacedState().getBlockData())
-        );
+    private final NamespacedKey crystalOwnerKey;
+
+    public BlockTracker() {
+        this.crystalOwnerKey = new NamespacedKey(Neptune.get(), "neptune_crystal_owner");
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlace(BlockPlaceEvent event) {
+        trackBlockChange(event.getBlock(), event.getPlayer(), event.getBlockReplacedState().getBlockData());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
         if (event.getEntity().getShooter() instanceof Player player) {
-            this.getMatchForPlayer(player).ifPresent(match -> match.getEntities().add(event.getEntity()));
+            getMatchForPlayer(player).ifPresent(match -> match.getEntities().add(event.getEntity()));
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCrystalPlace(EntitySpawnEvent event) {
         if (!(event.getEntity() instanceof EnderCrystal crystal)) {
             return;
         }
 
-        if (event.getEntity().getEntitySpawnReason() != CreatureSpawnEvent.SpawnReason.DEFAULT) {
-            return;
-        }
-
-        final Player player = getPlayer(crystal.getLocation());
-        if (player == null) {
+        Player nearbyPlayer = getNearbyPlayer(crystal.getLocation());
+        if (nearbyPlayer == null) {
             event.setCancelled(true);
             return;
         }
 
-        getMatchForPlayer(player).ifPresent(match -> match.getEntities().add(crystal));
+        getMatchForPlayer(nearbyPlayer).ifPresent(match -> match.getEntities().add(crystal));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCreatureSpawnEvent(CreatureSpawnEvent event) {
+        Player nearbyPlayer = getNearbyPlayer(event.getEntity().getLocation());
+        if (nearbyPlayer == null) {
+            event.setCancelled(true);
+            return;
+        }
+
+        getMatchForPlayer(nearbyPlayer).ifPresent(match -> match.getEntities().add(event.getEntity()));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockDrop(BlockDropItemEvent event) {
         getMatchForPlayer(event.getPlayer()).ifPresent(match -> {
-            if (match.getArena() instanceof StandAloneArena standAloneArena) {
-                event.getItems().removeIf(item -> !standAloneArena.getWhitelistedBlocks().contains(item.getItemStack().getType()));
+            if (shouldAllowArenaBreak(match)) {
+                StandAloneArena arena = (StandAloneArena) match.getArena();
+                filterAndTrackDrops(event, match, arena);
             } else {
-                match.getEntities().addAll(event.getItems());
+                event.setCancelled(true);
             }
         });
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityDamage(EntityDamageByEntityEvent event) {
-        if (event.getEntity() instanceof EnderCrystal enderCrystal && event.getDamager() instanceof Player player) {
-            enderCrystal.getPersistentDataContainer()
-                    .set(new NamespacedKey(Neptune.get(), "neptune_crystal_owner"),
-                            org.bukkit.persistence.PersistentDataType.STRING,
-                            player.getUniqueId().toString());
+        if (event.getEntity() instanceof EnderCrystal crystal && event.getDamager() instanceof Player player) {
+            setCrystalOwner(crystal, player);
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onExplosion(final @NotNull EntityExplodeEvent event) {
-        if (event.getEntity() instanceof EnderCrystal enderCrystal) {
-            final String uuid = enderCrystal.getPersistentDataContainer()
-                    .get(new NamespacedKey(Neptune.get(), "neptune_crystal_owner"),
-                            org.bukkit.persistence.PersistentDataType.STRING);
-
-            if (uuid == null || uuid.isEmpty()) {
-                return;
-            }
-
-            final Player player = Bukkit.getPlayer(UUID.fromString(uuid));
-            if (player == null) {
-                event.setCancelled(true);
-                return;
-            }
-
-            getMatchForPlayer(player).ifPresent(match -> {
-                for (final Block block : new ArrayList<>(event.blockList())) {
-                    for (final ItemStack item : block.getDrops()) {
-                        Bukkit.getScheduler().runTaskLater(Neptune.get(), () ->
-                                match.getEntities().add(EntityUtils.getEntityByItemStack(player.getWorld(), item)), 5L
-                        );
-                    }
-
-                    if (match.getKit().is(KitRule.ALLOW_ARENA_BREAK)) {
-                        if (match.getArena() instanceof StandAloneArena arena) {
-                            if (!arena.getWhitelistedBlocks().contains(block.getType())) {
-                                match.getChanges().computeIfAbsent(block.getLocation(), location -> block.getBlockData());
-                            } else {
-                                if (match.getChanges().containsKey(block.getLocation())) {
-                                    event.blockList().remove(block);
-                                } else {
-                                    match.getChanges().put(block.getLocation(), block.getBlockData());
-                                }
-                            }
-                        }
-                    } else {
-                        if (match.getChanges().containsKey(block.getLocation())) {
-                            event.blockList().remove(block);
-                        } else {
-                            match.getChanges().put(block.getLocation(), block.getBlockData());
-                        }
-                    }
-                }
-            });
-        } else {
-            final Player player = getPlayer(event.getLocation());
-            if (player == null) {
-                event.setCancelled(true);
-                return;
-            }
-
-            getMatchForPlayer(player).ifPresent(match -> {
-                for (final Block block : new ArrayList<>(event.blockList())) {
-                    for (final ItemStack item : block.getDrops()) {
-                        Bukkit.getScheduler().runTaskLater(Neptune.get(), () ->
-                                match.getEntities().add(EntityUtils.getEntityByItemStack(player.getWorld(), item)), 5L
-                        );
-                    }
-
-                    if (match.getKit().is(KitRule.ALLOW_ARENA_BREAK)) {
-                        if (match.getArena() instanceof StandAloneArena arena) {
-                            if (!arena.getWhitelistedBlocks().contains(block.getType())) {
-                                match.getChanges().computeIfAbsent(block.getLocation(), location -> block.getBlockData());
-                            } else {
-                                if (match.getChanges().containsKey(block.getLocation())) {
-                                    event.blockList().remove(block);
-                                } else {
-                                    match.getChanges().put(block.getLocation(), block.getBlockData());
-                                }
-                            }
-                        }
-                    } else {
-                        if (match.getChanges().containsKey(block.getLocation())) {
-                            event.blockList().remove(block);
-                        } else {
-                            match.getChanges().put(block.getLocation(), block.getBlockData());
-                        }
-                    }
-                }
-            });
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
-        getMatchForPlayer(event.getPlayer()).ifPresent(match -> {
-                    match.getLiquids().add(
-                            event.getBlockClicked().getRelative(event.getBlockFace()).getLocation()
-                    );
-                }
-        );
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onBlockFromTo(BlockFromToEvent event) {
-        final Block toBlock = event.getToBlock();
-        final Player player = getPlayer(toBlock.getLocation());
-
-        if (player == null) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onExplosion(EntityExplodeEvent event) {
+        Player responsiblePlayer = getResponsiblePlayer(event);
+        if (responsiblePlayer == null) {
             event.setCancelled(true);
             return;
         }
 
-        getMatchForPlayer(player).ifPresent(match ->
-                match.getChanges().computeIfAbsent(toBlock.getLocation(), location -> Material.AIR.createBlockData())
+        getMatchForPlayer(responsiblePlayer).ifPresent(match ->
+                handleExplosion(event, match));
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        Player player = event.getPlayer();
+        Block blockAboutToBeFilled = event.getBlockClicked().getRelative(event.getBlockFace());
+        BlockState originalState = blockAboutToBeFilled.getState();
+
+        getMatchForPlayer(player).ifPresent(match -> {
+            match.getChanges().putIfAbsent(originalState.getLocation(), originalState.getBlockData());
+            match.getLiquids().add(originalState.getLocation());
+        });
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBlockFromTo(BlockFromToEvent event) {
+        Block toBlock = event.getToBlock();
+        Player nearbyPlayer = getNearbyPlayer(toBlock.getLocation());
+
+        if (nearbyPlayer == null) {
+            event.setCancelled(true);
+            return;
+        }
+
+        getMatchForPlayer(nearbyPlayer).ifPresent(match ->
+                match.getChanges().computeIfAbsent(toBlock.getLocation(),
+                        location -> Material.AIR.createBlockData())
         );
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakBlockEvent event) {
         event.getDrops().clear();
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDestroy(BlockDestroyEvent event) {
-        final Block block = event.getBlock();
+        Block block = event.getBlock();
         block.getDrops().clear();
         event.setWillDrop(false);
-        final Player player = getPlayer(block.getLocation());
-        if (player == null) {
+
+        Player nearbyPlayer = getNearbyPlayer(block.getLocation());
+        if (nearbyPlayer == null) {
             event.setCancelled(true);
             return;
         }
 
-        getMatchForPlayer(player).ifPresent(match ->
-                match.getChanges().computeIfAbsent(block.getLocation(), location -> block.getBlockData())
-        );
+        trackBlockChange(block, nearbyPlayer);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
-        getMatchForPlayer(event.getPlayer()).ifPresent(match ->
-                match.getChanges().computeIfAbsent(event.getBlock().getLocation(), location -> event.getBlock().getBlockData())
-        );
+        trackBlockChange(event.getBlock(), event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMultiPlace(BlockMultiPlaceEvent event) {
         getMatchForPlayer(event.getPlayer()).ifPresent(match -> {
-            for (final BlockState blockState : event.getReplacedBlockStates()) {
-                match.getChanges().computeIfAbsent(blockState.getLocation(), location -> blockState.getBlockData());
+            for (BlockState blockState : event.getReplacedBlockStates()) {
+                match.getChanges().computeIfAbsent(blockState.getLocation(),
+                        location -> blockState.getBlockData());
             }
         });
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPhysics(BlockPhysicsEvent event) {
-        final Block block = event.getBlock();
-        final Player player = getPlayer(block.getLocation());
+        Block block = event.getBlock();
+        Player nearbyPlayer = getNearbyPlayer(block.getLocation());
 
-        if (player != null) {
-            getMatchForPlayer(player).ifPresent(match ->
-                    match.getChanges().computeIfAbsent(block.getLocation(), loc -> block.getBlockData())
-            );
+        if (nearbyPlayer != null) {
+            trackBlockChange(block, nearbyPlayer);
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockForm(BlockFormEvent event) {
-        final Player player = getPlayer(event.getBlock().getLocation());
-        if (player == null) {
-            return;
-        }
+        Player nearbyPlayer = getNearbyPlayer(event.getBlock().getLocation());
+        if (nearbyPlayer == null) return;
 
-        getMatchForPlayer(player).ifPresent(match ->
-                match.getChanges().computeIfAbsent(event.getBlock().getLocation(), loc -> event.getNewState().getBlockData())
+        getMatchForPlayer(nearbyPlayer).ifPresent(match ->
+                match.getChanges().computeIfAbsent(event.getBlock().getLocation(),
+                        loc -> event.getNewState().getBlockData())
         );
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onExplode(BlockExplodeEvent event) {
-        final Player player = getPlayer(event.getBlock().getLocation());
-        if (player == null) {
+        Player nearbyPlayer = getNearbyPlayer(event.getBlock().getLocation());
+        if (nearbyPlayer == null) {
             event.setCancelled(true);
             return;
         }
 
-        getMatchForPlayer(player).ifPresent(match -> {
-            for (final Block block : event.blockList()) {
-                match.getChanges().computeIfAbsent(block.getLocation(), location -> block.getBlockData());
-            }
-        });
+        getMatchForPlayer(nearbyPlayer).ifPresent(match ->
+                handleExplosion(event, match));
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onExplosionPrime(ExplosionPrimeEvent event) {
-        event.setFire(false);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onBlockIgnite(BlockIgniteEvent event) {
-        switch (event.getCause()) {
-            case LIGHTNING, FIREBALL, EXPLOSION -> event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onLeavesDecay(LeavesDecayEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onHangingBreak(HangingBreakEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBurn(BlockBurnEvent event) {
-        event.setCancelled(true);
+        Block block = event.getBlock();
+        Player nearbyPlayer = getNearbyPlayer(block.getLocation());
+        if (nearbyPlayer != null) {
+            trackBlockChange(block, nearbyPlayer);
+        }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onBlockSpread(BlockSpreadEvent event) {
-        event.setCancelled(true);
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockFade(BlockFadeEvent event) {
-        event.setCancelled(true);
+        Block block = event.getBlock();
+        Player nearbyPlayer = getNearbyPlayer(block.getLocation());
+        if (nearbyPlayer != null) {
+            trackBlockChange(block, nearbyPlayer);
+        }
     }
 
-    private Player getPlayer(Location location) {
-        Player player = null;
-        for (final Entity entity : location.getNearbyEntities(10, 10, 10)) {
-            if (entity instanceof Player p) {
-                player = p;
-                break;
+    private void filterAndTrackDrops(BlockDropItemEvent event, Match match, StandAloneArena arena) {
+        Iterator<Item> iterator = event.getItems().iterator();
+        while (iterator.hasNext()) {
+            Item item = iterator.next();
+            if (!arena.getWhitelistedBlocks().contains(item.getItemStack().getType())) {
+                iterator.remove();
+            } else {
+                match.getEntities().add(item);
             }
         }
-        return player;
+    }
+
+    private void setCrystalOwner(EnderCrystal crystal, Player player) {
+        crystal.getPersistentDataContainer().set(
+                crystalOwnerKey,
+                org.bukkit.persistence.PersistentDataType.STRING,
+                player.getUniqueId().toString()
+        );
+    }
+
+    private Player getResponsiblePlayer(EntityExplodeEvent event) {
+        if (event.getEntity() instanceof EnderCrystal crystal) {
+            return getCrystalOwner(crystal);
+        }
+        return getNearbyPlayer(event.getLocation());
+    }
+
+    private Player getCrystalOwner(EnderCrystal crystal) {
+        String uuid = crystal.getPersistentDataContainer().get(
+                crystalOwnerKey,
+                org.bukkit.persistence.PersistentDataType.STRING
+        );
+
+        if (uuid == null || uuid.isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Bukkit.getPlayer(UUID.fromString(uuid));
+        } catch (IllegalArgumentException e) {
+            ServerUtils.error("Invalid UUID stored in crystal: " + uuid);
+            return null;
+        }
+    }
+
+    private void handleExplosion(EntityExplodeEvent event, Match match) {
+        if (!(match.getArena() instanceof StandAloneArena arena)) {
+            return;
+        }
+
+        boolean allowBreak = shouldAllowArenaBreak(match);
+        List<Block> blocksToProcess = new ArrayList<>(event.blockList());
+
+        for (Block block : blocksToProcess) {
+            processExplosionBlock(event, match, arena, block, allowBreak);
+        }
+    }
+
+    private void handleExplosion(BlockExplodeEvent event, Match match) {
+        if (!(match.getArena() instanceof StandAloneArena arena)) {
+            return;
+        }
+
+        boolean allowBreak = shouldAllowArenaBreak(match);
+        List<Block> blocksToProcess = new ArrayList<>(event.blockList());
+
+        for (Block block : blocksToProcess) {
+            processExplosionBlock(event, match, arena, block, allowBreak);
+        }
+    }
+
+    private void processExplosionBlock(EntityExplodeEvent event, Match match, StandAloneArena arena, Block block, boolean allowBreak) {
+        boolean isWhitelisted = arena.getWhitelistedBlocks().contains(block.getType());
+        boolean hasChange = match.getChanges().containsKey(block.getLocation());
+
+        if (isWhitelisted) {
+            spawnBlockDrops(match, block);
+        } else {
+            event.blockList().remove(block);
+        }
+
+        handleBlockChangeLogic(event.blockList(), match, block, allowBreak, isWhitelisted, hasChange);
+    }
+
+    private void processExplosionBlock(BlockExplodeEvent event, Match match, StandAloneArena arena, Block block, boolean allowBreak) {
+        boolean isWhitelisted = arena.getWhitelistedBlocks().contains(block.getType());
+        boolean hasChange = match.getChanges().containsKey(block.getLocation());
+
+        if (isWhitelisted) {
+            spawnBlockDrops(match, block);
+        } else {
+            event.blockList().remove(block);
+        }
+
+        handleBlockChangeLogic(event.blockList(), match, block, allowBreak, isWhitelisted, hasChange);
+    }
+
+    private void handleBlockChangeLogic(List<Block> blockList, Match match, Block block, boolean allowBreak, boolean isWhitelisted, boolean hasChange) {
+        if (allowBreak) {
+            if (!isWhitelisted) {
+                match.getChanges().computeIfAbsent(block.getLocation(), loc -> block.getBlockData());
+            } else {
+                if (hasChange) {
+                    blockList.remove(block);
+                } else {
+                    match.getChanges().put(block.getLocation(), block.getBlockData());
+                }
+            }
+        } else {
+            if (hasChange) {
+                blockList.remove(block);
+            } else {
+                match.getChanges().put(block.getLocation(), block.getBlockData());
+            }
+        }
+    }
+
+    private void spawnBlockDrops(Match match, Block block) {
+        Collection<ItemStack> drops = block.getDrops();
+        for (ItemStack item : drops) {
+            Bukkit.getScheduler().runTaskLater(Neptune.get(), () -> {
+                try {
+                    match.getEntities().add(EntityUtils.getEntityByItemStack(match.getArena().getWorld(), item));
+                } catch (Exception e) {
+                    ServerUtils.error("Failed to spawn drop for block: " + block.getType());
+                }
+            }, 5);
+        }
+    }
+
+    private void trackBlockChange(Block block, Player player) {
+        trackBlockChange(block, player, block.getBlockData());
+    }
+
+    private void trackBlockChange(Block block, Player player, BlockData blockData) {
+        getMatchForPlayer(player).ifPresent(match ->
+                match.getChanges().computeIfAbsent(block.getLocation(), location -> blockData)
+        );
+    }
+
+    private boolean shouldAllowArenaBreak(Match match) {
+        return match.getArena() instanceof StandAloneArena && match.getKit().is(KitRule.ALLOW_ARENA_BREAK);
+    }
+
+    private Player getNearbyPlayer(Location location) {
+        return WorldUtils.getPlayersInRadius(location, 10)
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
     private Optional<Match> getMatchForPlayer(Player player) {
-        final Profile profile = API.getProfile(player);
-        return Optional.ofNullable(profile)
-                .map(Profile::getMatch);
+        try {
+            Profile profile = API.getProfile(player);
+            return Optional.ofNullable(profile).map(Profile::getMatch);
+        } catch (Exception e) {
+            ServerUtils.error("Failed to get match for player: " + player.getName());
+            return Optional.empty();
+        }
     }
 }

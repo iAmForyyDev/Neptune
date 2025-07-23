@@ -4,6 +4,7 @@ import dev.lrxh.neptune.API;
 import dev.lrxh.neptune.Neptune;
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
 import dev.lrxh.neptune.feature.party.impl.PartyRequest;
+import dev.lrxh.neptune.profile.ProfileService;
 import dev.lrxh.neptune.profile.data.ProfileState;
 import dev.lrxh.neptune.profile.impl.Profile;
 import dev.lrxh.neptune.providers.clickable.ClickableComponent;
@@ -21,10 +22,10 @@ import java.util.function.Consumer;
 @Getter
 @Setter
 public class Party {
-    private final UUID leader;
     private final HashSet<UUID> users;
     private final boolean duelRequest;
     private final Neptune plugin;
+    private UUID leader;
     private boolean open;
     private int maxUsers;
 
@@ -44,7 +45,6 @@ public class Party {
         Player player = Bukkit.getPlayer(leader);
         if (player == null) {
             users.remove(leader);
-            disband();
             return "";
         }
 
@@ -83,7 +83,9 @@ public class Party {
         Profile profile = API.getProfile(playerUUID);
         profile.getGameData().setParty(this);
         profile.setState(ProfileState.IN_PARTY);
-        broadcast(MessagesLocale.PARTY_JOINED, new Replacement("<player>", invitedPlayer.getName()));
+        if (playerUUID != leader) {
+            broadcast(MessagesLocale.PARTY_JOINED, new Replacement("<player>", invitedPlayer.getName()));
+        }
         API.getProfile(playerUUID).getGameData().removeRequest(leader);
     }
 
@@ -105,8 +107,10 @@ public class Party {
         forEachMemberAsUUID(uuid -> {
             Profile profile = API.getProfile(uuid);
             profile.getGameData().setParty(null);
-            profile.setState(ProfileState.IN_LOBBY);
+            if (profile.getState().equals(ProfileState.IN_PARTY)) profile.setState(ProfileState.IN_LOBBY);
         });
+
+        PartyService.get().removeParty(this);
     }
 
     public void broadcast(MessagesLocale messagesLocale, Replacement... replacements) {
@@ -139,4 +143,36 @@ public class Party {
             action.accept(user);
         }
     }
+
+    public void transfer(Player player, Player target) {
+        this.setLeader(target.getUniqueId());
+        this.broadcast(MessagesLocale.PARTY_TRANSFER, new Replacement("<leader>", player.getName()), new Replacement("<target>", player.getName()));
+    }
+
+    public boolean advertise() {
+        Profile leaderProfile = API.getProfile(leader);
+
+        if (leaderProfile.hasCooldownEnded("party_advertise")) {
+            leaderProfile.addCooldown("party_advertise", 300_000);
+
+            for (Profile profile : ProfileService.get().profiles.values()) {
+                TextComponent join = new ClickableComponent(
+                        MessagesLocale.PARTY_ADVERTISE_JOIN.getString(),
+                        "/party join " + getLeaderName(),
+                        MessagesLocale.PARTY_ADVERTISE_JOIN_HOVER.getString().replaceAll("<leader>", getLeaderName())
+                ).build();
+
+                MessagesLocale.PARTY_ADVERTISE_MESSAGE.send(
+                        profile.getPlayerUUID(),
+                        new Replacement("<join>", join),
+                        new Replacement("<leader>", getLeaderName())
+                );
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
 }
