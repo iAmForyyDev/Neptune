@@ -224,11 +224,11 @@ public enum MessagesLocale implements IDataAccessor {
         if (dataType.equals(DataType.STRING_LIST)) {
             for (String message : getStringList()) {
                 if (message.equals("NONE")) continue;
-                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, message, replacements));
+                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(message, replacements));
             }
         } else if (dataType.equals(DataType.STRING)) {
             if (getString().equals("NONE")) return;
-            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, getString(), replacements));
+            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(getString(), replacements));
         }
     }
 
@@ -239,11 +239,11 @@ public enum MessagesLocale implements IDataAccessor {
         if (dataType.equals(DataType.STRING_LIST)) {
             for (String message : getStringList()) {
                 if (message.equals("NONE")) continue;
-                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, message, replacements));
+                PlayerUtil.sendMessage(playerUUID, CC.returnMessage(message, replacements));
             }
         } else if (dataType.equals(DataType.STRING)) {
             if (getString().equals("NONE")) return;
-            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(player, getString(), replacements));
+            PlayerUtil.sendMessage(playerUUID, CC.returnMessage(getString(), replacements));
         }
     }
 }
