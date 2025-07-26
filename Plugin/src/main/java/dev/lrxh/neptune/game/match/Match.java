@@ -7,6 +7,7 @@ import dev.lrxh.neptune.configs.impl.ScoreboardLocale;
 import dev.lrxh.neptune.events.MatchSpectatorAddEvent;
 import dev.lrxh.neptune.events.MatchSpectatorRemoveEvent;
 import dev.lrxh.neptune.game.arena.Arena;
+import dev.lrxh.neptune.game.arena.impl.StandAloneArena;
 import dev.lrxh.neptune.game.kit.Kit;
 import dev.lrxh.neptune.game.kit.impl.KitRule;
 import dev.lrxh.neptune.game.match.impl.MatchState;
@@ -27,7 +28,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import net.kyori.adventure.text.TextComponent;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
@@ -104,10 +108,7 @@ public abstract class Match {
         profile.setState(ProfileState.IN_SPECTATOR);
         if (add) spectators.add(player.getUniqueId());
 
-        forEachPlayer(participiantPlayer -> {
-            player.showPlayer(Neptune.get(), participiantPlayer);
-            participiantPlayer.hidePlayer(Neptune.get(), player);
-        });
+        showPlayerForSpectators();
 
         if (sendMessage) broadcast(MessagesLocale.SPECTATE_START, new Replacement("<player>", player.getName()));
 
@@ -167,14 +168,11 @@ public abstract class Match {
     }
 
     public void resetArena() {
-        for (Location location : liquids) {
-            arena.getWorld().setBlockData(location, Material.AIR.createBlockData());
-        }
-        for (Map.Entry<Location, BlockData> entry : changes.entrySet()) {
-            arena.getWorld().setBlockData(entry.getKey(), entry.getValue());
-        }
-
         removeEntities();
+
+        if (arena instanceof StandAloneArena standAloneArena) {
+            standAloneArena.restore();
+        }
     }
 
     public List<String> getScoreboard(UUID playerUUID) {
@@ -210,10 +208,14 @@ public abstract class Match {
         } else if (this instanceof TeamFightMatch) {
             if (this.getKit().is(KitRule.BED_WARS)) {
                 return PlaceholderUtil.format(new ArrayList<>(ScoreboardLocale.IN_GAME_BEDWARS_TEAM.getStringList()), player);
+            } else if (this.getKit().is(KitRule.BOXING)) {
+                return PlaceholderUtil.format(new ArrayList<>(ScoreboardLocale.IN_GAME_BOXING_TEAM.getStringList()), player);
             }
-
             return PlaceholderUtil.format(new ArrayList<>(ScoreboardLocale.IN_GAME_TEAM.getStringList()), player);
         } else if (this instanceof FfaFightMatch) {
+            if (this.getKit().is(KitRule.BOXING)) {
+                return PlaceholderUtil.format(new ArrayList<>(ScoreboardLocale.IN_GAME_BOXING_FFA.getStringList()), player);
+            }
             return PlaceholderUtil.format(new ArrayList<>(ScoreboardLocale.IN_GAME_FFA.getStringList()), player);
         }
 
@@ -298,10 +300,7 @@ public abstract class Match {
             participant.setDead(false);
         });
 
-        forEachPlayer(player -> {
-            Profile profile = API.getProfile(player);
-            profile.handleVisibility();
-        });
+        showPlayerForSpectators();
     }
 
     public void hideHealth() {
@@ -365,7 +364,7 @@ public abstract class Match {
 
         if (deathMessage.isEmpty() && deathCause != null) {
             broadcast(
-                    deadParticipant.getDeathCause().getMessagesLocale(),
+                    deadParticipant.getDeathCause().getMessage(),
                     new Replacement("<player>", deadParticipant.getNameColored()),
                     new Replacement("<killer>", deadParticipant.getLastAttackerName())
             );

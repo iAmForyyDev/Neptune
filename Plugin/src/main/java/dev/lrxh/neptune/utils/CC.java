@@ -2,10 +2,12 @@ package dev.lrxh.neptune.utils;
 
 import dev.lrxh.neptune.configs.impl.MessagesLocale;
 import dev.lrxh.neptune.providers.clickable.Replacement;
+import dev.lrxh.neptune.providers.placeholder.PlaceholderUtil;
 import lombok.experimental.UtilityClass;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -37,14 +39,15 @@ public final class CC {
                         .deserialize(message);
     }
 
-    public @NotNull Component returnMessage(final String message, final Replacement @NotNull ... replacements) {
+    public @NotNull Component returnMessage(final @NotNull Player player, final String message, final Replacement @NotNull ... replacements) {
+        final String formattedWithPlaceholders = PlaceholderUtil.format(message, player);
         final Map<String, String> replacementMap = new HashMap<>(replacements.length);
         for (final Replacement replacement : replacements) {
             replacementMap.put(replacement.getPlaceholder(), replacement.getReplacement());
         }
 
         final StringBuilder resultBuilder = new StringBuilder();
-        final Matcher matcher = PLACEHOLDER_PATTERN.matcher(message);
+        final Matcher matcher = PLACEHOLDER_PATTERN.matcher(formattedWithPlaceholders);
 
         while (matcher.find()) {
             final String foundPlaceholder = matcher.group();

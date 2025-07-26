@@ -46,7 +46,6 @@ import dev.lrxh.neptune.game.kit.procedure.KitProcedureListener;
 import dev.lrxh.neptune.game.match.MatchService;
 import dev.lrxh.neptune.game.match.commands.MatchHistoryCommand;
 import dev.lrxh.neptune.game.match.commands.SpectateCommand;
-import dev.lrxh.neptune.game.match.listener.BlockTracker;
 import dev.lrxh.neptune.game.match.listener.MatchListener;
 import dev.lrxh.neptune.game.match.tasks.ArenaBoundaryCheckTask;
 import dev.lrxh.neptune.game.match.tasks.XPBarRunnable;
@@ -130,7 +129,6 @@ public final class Neptune extends JavaPlugin {
         if (ScoreboardLocale.ENABLED_SCOREBOARD.getBoolean()) {
             new FastManager(this, new ScoreboardAdapter());
         }
-
         ServerUtils.info("Loaded Successfully");
     }
 
@@ -152,8 +150,7 @@ public final class Neptune extends JavaPlugin {
                 new BukkitListener(),
                 new MenuListener(),
                 new ArenaProcedureListener(),
-                new KitProcedureListener(),
-                new BlockTracker()
+                new KitProcedureListener()
         ).forEach(listener -> getServer().getPluginManager().registerEvents(listener, this));
     }
 
@@ -217,8 +214,8 @@ public final class Neptune extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        stopService(KitService.get(), KitService::stop);
-        stopService(ArenaService.get(), ArenaService::stop);
+        stopService(KitService.get(), KitService::save);
+        stopService(ArenaService.get(), ArenaService::save);
         stopService(MatchService.get(), MatchService::stopAllGames);
         stopService(TaskScheduler.get(), TaskScheduler::stopAllTasks);
         stopService(ProfileService.get(), ProfileService::saveAll);

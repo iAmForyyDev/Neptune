@@ -57,6 +57,8 @@ public class Participant {
         this.bedBroken = false;
         this.currentCheckPoint = null;
         this.checkPoint = 0;
+        this.hits = 0;
+        this.combo = 0;
     }
 
     public void setDead(boolean dead) {
@@ -84,7 +86,7 @@ public class Participant {
     }
 
     public String getNameColored() {
-        return PlaceholderUtil.format(color.getColor() + name, getPlayer());
+        return color.getColor() + name;
     }
 
     public void addWin() {

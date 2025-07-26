@@ -133,13 +133,13 @@ public class KitProcedureListener implements Listener {
                     player.sendMessage(CC.success("Set damage multiplier"));
                     new KitManagementMenu(profile.getKitProcedure().getKit()).open(player);
                 } catch (NumberFormatException e) {
-                    player.sendMessage(CC.error("Invalid number! Try again or send \"cancel\"."));
+                    player.sendMessage(CC.error("Invalid number."));
                     return;
                 }
             }
 
         }
         profile.getKitProcedure().setKit(null);
-        KitService.get().stop();
+        KitService.get().save();
     }
 }

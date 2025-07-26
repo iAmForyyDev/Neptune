@@ -9,6 +9,7 @@ import dev.lrxh.neptune.providers.manager.Value;
 import dev.lrxh.neptune.utils.ConfigFile;
 import dev.lrxh.neptune.utils.ItemUtils;
 import dev.lrxh.neptune.utils.PotionEffectUtils;
+import dev.lrxh.neptune.utils.ServerUtils;
 import lombok.Getter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
@@ -45,7 +46,12 @@ public class KitService extends IService {
                 HashSet<Arena> arenas = new HashSet<>();
                 if (!config.getStringList(path + "arenas").isEmpty()) {
                     for (String arenaName : config.getStringList(path + "arenas")) {
-                        arenas.add(ArenaService.get().getArenaByName(arenaName));
+                        Arena arena = ArenaService.get().getArenaByName(arenaName);
+                        if (arena == null) {
+                            ServerUtils.error("KitService: Arena " + arenaName + " not found for kit " + kitName);
+                            continue;
+                        }
+                        arenas.add(arena);
                     }
                 }
 
@@ -75,7 +81,7 @@ public class KitService extends IService {
     }
 
     @Override
-    public void stop() {
+    public void save() {
         getConfigFile().getConfiguration().getKeys(false).forEach(key -> getConfigFile().getConfiguration().set(key, null));
         kits.forEach(kit -> {
             String path = "kits." + kit.getName() + ".";
